@@ -34,7 +34,7 @@ from PIL.ImageQt import ImageQt
 from playsound import playsound
 from PySide6 import QtCore
 from PySide6.QtCore import QFile, QStandardPaths, Qt, QThreadPool, QTimer, Slot
-from PySide6.QtGui import QFont, QFontDatabase, QImage, QKeySequence, QPixmap, QShortcut
+from PySide6.QtGui import QFont, QFontDatabase, QIcon, QImage, QKeySequence, QPixmap, QShortcut
 from PySide6.QtMultimedia import QCamera, QImageCapture, QMediaCaptureSession, QMediaDevices
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QMessageBox, QVBoxLayout
@@ -47,13 +47,13 @@ from acid.engines import engines, Engine  # isort:skip
 from acid.game import Game  # isort:skip
 from acid.gui.res import icons  # isort:skip
 from acid.gui.logs import Logger  # isort:skip
-from acid.gui.state import BoardDetectorState  # isort:skip
-from acid.gui.threads import Worker  # isort:skip
 from acid.gui.qt.reactive import ReactiveAttrPresence, ReactiveAttrSynced, ReactiveAttrToolTip  # isort:skip
 from acid.gui.qt.widgets import PictureLabelFitToParent  # isort:skip
 from acid.gui.qt.widgets import ButtonOpensFileDialog, QPlainTextEditFocusSignaled
 
 from acid.gui.settings import Settings  # isort:skip
+from acid.gui.state import BoardDetectorState, GameState  # isort:skip
+from acid.gui.threads import Worker  # isort:skip
 
 
 UI_MAPPINGS = {
@@ -66,32 +66,31 @@ DISABLE_VOICE = False
 
 class MainWindow(QMainWindow):
     ui = None
+    camera_capture = None
     debug_images_detector = []
     rendered_image = None
     frame_num = 0
     camera_ready = False
-    current_frame = None
     detector_result = None
     close_requested = False
+    current_frame = None
+    opening_book_reader = None
+    game_state = GameState.NULL
     board_detector_state = BoardDetectorState.NULL
     labels = {}
 
+    _capture_session = None
     _game_save_dir = None
     _engine = None
     _camera = None
-    _capture_session = None
-    camera_capture = None
 
+    board_detector = Detector()
+    settings = Settings()
     logger = Logger()
+    board = Board()
     game = Game(
         logger=logger, program_name=conf.PROGRAM_NAME, program_version=conf.PROGRAM_VERSION, pgn_site=conf.PROGRAM_SITE
     )
-    settings = Settings()
-
-    board = Board()
-    current_frame = None
-    board_detector = Detector()
-    opening_book_reader = None
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -350,6 +349,15 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def action_start_stop(self):
+        if self.game_state in (GameState.NULL, GameState.PAUSED, GameState.FINISHED):
+            self.ui.pushButtonStartStop.setIcon(QIcon(":/pause.svg"))
+            self.game_state = GameState.RUNNING
+            self.log("game started")
+        elif self.game_state == GameState.RUNNING:
+            self.ui.pushButtonStartStop.setIcon(QIcon(":/play.svg"))
+            self.game_state = GameState.PAUSED
+            self.log("game paused")
+
         if self.board_detector_state in [
             BoardDetectorState.RUNNING_CORNER_DETECTION,
             BoardDetectorState.RUNNING_SQUARE_DETECTION,
@@ -361,6 +369,9 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def action_move_undo(self):
+        self.game_state = GameState.PAUSED
+        self.log("undo requested, game paused, resume it when you and the board are ready")
+
         try:
             self.board.pop()
             self.update_board_rendering()
