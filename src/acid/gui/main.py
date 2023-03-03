@@ -38,7 +38,6 @@ from PySide6.QtGui import QFont, QFontDatabase, QImage, QKeySequence, QPixmap, Q
 from PySide6.QtMultimedia import QCamera, QImageCapture, QMediaCaptureSession, QMediaDevices
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QMessageBox, QVBoxLayout
-from threads import Worker
 
 sys.path.insert(0, str((Path(__file__).parent / ".." / "..")))
 
@@ -49,6 +48,7 @@ from acid.game import Game  # isort:skip
 from acid.gui.res import icons  # isort:skip
 from acid.gui.logs import Logger  # isort:skip
 from acid.gui.state import BoardDetectorState  # isort:skip
+from acid.gui.threads import Worker  # isort:skip
 from acid.gui.qt.reactive import ReactiveAttrPresence, ReactiveAttrSynced, ReactiveAttrToolTip  # isort:skip
 from acid.gui.qt.widgets import PictureLabelFitToParent  # isort:skip
 from acid.gui.qt.widgets import ButtonOpensFileDialog, QPlainTextEditFocusSignaled

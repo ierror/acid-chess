@@ -29,7 +29,7 @@
             <item>
              <widget class="QPushButton" name="pushButtonStartStop">
               <property name="toolTip">
-               <string>Start game</string>
+               <string>start / stop game</string>
               </property>
               <property name="text">
                <string/>
@@ -69,7 +69,7 @@
             <item>
              <widget class="QPushButton" name="pushButton_5">
               <property name="toolTip">
-               <string>mute sound</string>
+               <string>mute / unmute sound</string>
               </property>
               <property name="text">
                <string/>
@@ -129,8 +129,12 @@
            <font>
             <pointsize>72</pointsize>
             <bold>true</bold>
-            <kerning>true</kerning>
+            <strikeout>false</strikeout>
+            <kerning>false</kerning>
            </font>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">QLabel { color : #F9F9F9; }</string>
           </property>
           <property name="text">
            <string/>
@@ -194,6 +198,20 @@
               </property>
              </spacer>
             </item>
+            <item>
+             <widget class="QPushButton" name="pushButton">
+              <property name="toolTip">
+               <string>re-detect board corners</string>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="icon">
+               <iconset resource="res/icons.qrc">
+                <normaloff>:/frame-alt-empty.svg</normaloff>:/frame-alt-empty.svg</iconset>
+              </property>
+             </widget>
+            </item>
            </layout>
           </item>
          </layout>
@@ -239,7 +257,7 @@
              </sizepolicy>
             </property>
             <property name="currentIndex">
-             <number>1</number>
+             <number>0</number>
             </property>
             <widget class="QWidget" name="tabWidgetGameSettingPage1">
              <attribute name="title">
