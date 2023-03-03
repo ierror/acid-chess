@@ -1,0 +1,36 @@
+==========
+ACID Chess
+==========
+
+.. toctree::
+   :maxdepth: 3
+   :hidden:
+
+   get_started
+   architecture
+   clients
+   modules
+
+**The Chess Computer for nerds, by nerds.**
+
+![Acid Chess Logo](/src/acid/gui/res/logo.png "Logo")
+
+
+# How does it work?
+
+
+![Acid Chess Logo](/docs/res/photos/over-the-board.jpg "Game over the board")
+
+![Acid Chess Logo](/docs/res/photos/gui.jpg "GUI Screenshot")
+
+### Die Praxis
+
+## Get Started
+
+### Requirements
+
+- python >= 3.9
+
+## Contact
+
+Follow me on mastodon [@boerni@chaos.social](https://chaos.social/@boerni)

@@ -1,0 +1,7 @@
+class BoardDetectorState:
+    NULL = 0
+    RUNNING_CORNER_DETECTION = 1
+    RUNNING_SQUARE_DETECTION = 2
+    DETECTED = 3
+    FAILED_DETECTED = 4
+    LOST = 5

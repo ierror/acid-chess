@@ -1,0 +1,30 @@
+from dataclasses import dataclass
+from pathlib import Path
+
+from acid.gui.qt.settings import QTSettingsSyncedDataclassMixin
+
+
+@dataclass
+class Settings(QTSettingsSyncedDataclassMixin):
+    save_games_dir: Path = None
+    collect_training_data: bool = False
+    collect_training_data_threshold_perc: int = 80
+    visual_debug_delay_s: bool = False
+    brightness_adjust: int = 0
+
+    _qt_settings_synced = [
+        "save_games_dir",
+        "collect_training_data",
+        "collect_training_data_threshold_perc",
+        "visual_debug_delay_s",
+        "brightness_adjust",
+    ]
+
+    def __init__(self):
+        super().__init__()
+
+    def __setattr__(self, name, value):
+        if name == "save_games_dir":
+            value = Path(value)
+        super().__setattr__(name, value)
+        self.persist()
