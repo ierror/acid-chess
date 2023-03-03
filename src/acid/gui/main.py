@@ -61,9 +61,6 @@ UI_MAPPINGS = {
     "engine": {engine_idx: engine.name for (engine_idx, engine) in enumerate(engines)},
 }
 
-# TODO move?
-TRAINING_DATA_DIR = conf.TRAINING_DATA_DIR / "squares" / "sortme"
-
 DISABLE_VOICE = False
 
 
@@ -180,6 +177,11 @@ class MainWindow(QMainWindow):
             self.settings.save_games_dir = game_save_location_def
         self.settings.save_games_dir.mkdir(parents=True, exist_ok=True)
 
+        # set collect training data dir default path
+        if self.settings.collect_training_data_dir is None:
+            collect_training_data_dir_def = documents_dir / conf.PROGRAM_NAME / "TrainingData"
+            self.settings.collect_training_data_dir = collect_training_data_dir_def
+
         # engine elms visibility based on opponent_type_idx
         for ui_elm in [
             self.ui.labelEngine,
@@ -193,6 +195,9 @@ class MainWindow(QMainWindow):
 
         self.ui.pushButtonSaveGamesTo.clicked.connect(self.action_save_games_to)
         ReactiveAttrToolTip(self.settings, "save_games_dir", self.ui.pushButtonSaveGamesTo)
+
+        self.ui.pushButtonCollectTrainingDataSaveTo.clicked.connect(self.action_collect_training_data_to)
+        ReactiveAttrToolTip(self.settings, "collect_training_data_dir", self.ui.pushButtonCollectTrainingDataSaveTo)
 
         QShortcut(QKeySequence(Qt.ALT | Qt.Key_Z), self.ui).activated.connect(self.action_move_undo)
         self.ui.pushButtonStartStop.clicked.connect(self.action_start_stop)
@@ -208,7 +213,9 @@ class MainWindow(QMainWindow):
         self.ui.plainTextEditEngineOptions.setFont(mono_font)
 
         self.game.set_save_dir(self.game_save_dir)
-        self.log(f"Save games to {self._game_save_dir.parent}")
+        self.log(f"Saving games to {self._game_save_dir.parent}")
+        if self.settings.collect_training_data:
+            self.log(f"Saving training data to {self.settings.collect_training_data_dir}")
 
         # ensure initial state
         self.action_camera_changed()
@@ -397,6 +404,13 @@ class MainWindow(QMainWindow):
         self._game_save_dir = None
 
     @Slot()
+    def action_collect_training_data_to(self):
+        dirname = QFileDialog.getExistingDirectory(
+            self, "Select directory where to save training data", str(self.settings.collect_training_data_dir)
+        )
+        self.settings.collect_training_data_dir = dirname
+
+    @Slot()
     def action_opening_book_selected(self):
         try:
             self.opening_book_reader = None
@@ -494,7 +508,6 @@ class MainWindow(QMainWindow):
         squares_coords = None
         last_move = None
         validation_count = 0
-        skip_until_frame = 0
         engine_run_todo = True
 
         while True:
@@ -507,9 +520,6 @@ class MainWindow(QMainWindow):
                 continue
 
             self.frame_num += 1
-            if skip_until_frame and skip_until_frame > self.frame_num:
-                continue
-
             frame = copy(self.current_frame)
             if self.camera_ready:
                 self.camera_capture.capture()
@@ -536,8 +546,7 @@ class MainWindow(QMainWindow):
                 if self.close_requested:
                     break
 
-                # edges not detected => skip some frames
-                skip_until_frame = self.frame_num + 50
+                # edges not detected => try on next round
                 break
 
             # detect squares
@@ -650,7 +659,6 @@ class MainWindow(QMainWindow):
 
             move = self.board.diff(squares)
             if move is None:
-                skip_until_frame = self.frame_num + 15
                 continue
 
             # validate move with last frame
@@ -730,8 +738,9 @@ class MainWindow(QMainWindow):
                 squares.sort(self.board.a1_corner)
                 for square in squares.get_flat():
                     if square.cl_probability < self.settings.collect_training_data_threshold_perc:
-                        traning_im_path = os.path.join(TRAINING_DATA_DIR, square.cl_readable)
-                        cv2.imwrite(os.path.join(traning_im_path, f"{uuid4()}.jpg"), square.image)
+                        train_im_path = self.settings.collect_training_data_dir / "squares" / square.cl_readable
+                        train_im_path.mkdir(parents=True, exist_ok=True)
+                        cv2.imwrite(os.path.join(train_im_path, f"{uuid4()}.jpg"), square.image)
 
     def close(self, *args):
         if self.close_requested:

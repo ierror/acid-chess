@@ -8,6 +8,7 @@ from acid.gui.qt.settings import QTSettingsSyncedDataclassMixin
 class Settings(QTSettingsSyncedDataclassMixin):
     save_games_dir: Path = None
     collect_training_data: bool = False
+    collect_training_data_dir: Path = None
     collect_training_data_threshold_perc: int = 80
     visual_debug_delay_s: bool = False
     brightness_adjust: int = 0
@@ -16,6 +17,7 @@ class Settings(QTSettingsSyncedDataclassMixin):
         "save_games_dir",
         "collect_training_data",
         "collect_training_data_threshold_perc",
+        "collect_training_data_dir",
         "visual_debug_delay_s",
         "brightness_adjust",
     ]
@@ -25,6 +27,8 @@ class Settings(QTSettingsSyncedDataclassMixin):
 
     def __setattr__(self, name, value):
         if name == "save_games_dir":
+            value = Path(value)
+        elif name == "collect_training_data_dir":
             value = Path(value)
         super().__setattr__(name, value)
         self.persist()
