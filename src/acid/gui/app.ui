@@ -67,7 +67,7 @@
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="pushButton_5">
+             <widget class="QPushButton" name="pushButtonMuteUnmute">
               <property name="toolTip">
                <string>mute / unmute sound</string>
               </property>
@@ -199,7 +199,10 @@
              </spacer>
             </item>
             <item>
-             <widget class="QPushButton" name="pushButton">
+             <widget class="QPushButton" name="pushButtonReDetectCorners">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
               <property name="toolTip">
                <string>re-detect board corners</string>
               </property>

@@ -199,6 +199,12 @@ class MainWindow(QMainWindow):
         self.ui.pushButtonCollectTrainingDataSaveTo.clicked.connect(self.action_collect_training_data_to)
         ReactiveAttrToolTip(self.settings, "collect_training_data_dir", self.ui.pushButtonCollectTrainingDataSaveTo)
 
+        re_detect_visible_for = (BoardDetectorState.DETECTED,)
+        ReactiveAttrPresence(
+            self, "board_detector_state", self.ui.pushButtonReDetectCorners, visible_for=re_detect_visible_for
+        )
+        self.ui.pushButtonReDetectCorners.setVisible(False)
+
         QShortcut(QKeySequence(Qt.ALT | Qt.Key_Z), self.ui).activated.connect(self.action_move_undo)
         self.ui.pushButtonStartStop.clicked.connect(self.action_start_stop)
         self.ui.pushButtonMoveUndo.clicked.connect(self.action_move_undo)
