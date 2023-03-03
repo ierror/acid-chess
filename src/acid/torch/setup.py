@@ -1,14 +1,12 @@
-from functools import cache
 from pathlib import Path
 
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from lightning import Trainer
-from torch import nn
-from torchvision import models, transforms
+from torchvision import transforms
 
 from .. import conf
-from ..decorators import cached_class_attr, classproperty
+from ..decorators import classproperty
 from .lightning_modules import BoardSegmentationModule, SquareClassifierModule
 
 _lightning_trainer = None
