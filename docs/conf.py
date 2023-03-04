@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str((Path(__file__).parent / ".." / "src")))
 
-from acid.conf import PROGRAM_NAME, PROGRAM_VERSION  # isort:skip
+from acid import PROGRAM_NAME, PROGRAM_VERSION  # isort:skip
 
 project = PROGRAM_NAME
 copyright = "2023, Bernhard Janetzki"

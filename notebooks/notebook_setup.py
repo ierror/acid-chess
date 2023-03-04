@@ -1,4 +1,6 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str((Path(".").parent / ".." / "src")))
+print(str((Path(".").parent / "..")))
+
+sys.path.insert(0, str((Path(".").parent / "..")))

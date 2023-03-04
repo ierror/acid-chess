@@ -1,2 +1,2 @@
 icons:
-	cd src/acid/gui/res/; pyside6-rcc icons.qrc -o icons.py
+	cd acid/gui/res/; pyside6-rcc icons.qrc -o icons.py
