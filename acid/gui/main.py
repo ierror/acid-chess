@@ -441,7 +441,7 @@ class MainWindow(QMainWindow):
                 continue
             option = Engine.option_parse_re.match(line)
             if option is None:
-                self.show_alert(line)
+                self.show_alert(f"Wrong syntax on line '{line}' - Use 'setoption name <option> value <value>'")
                 return
             else:
                 options[option["option_name"]] = option["option_value"]

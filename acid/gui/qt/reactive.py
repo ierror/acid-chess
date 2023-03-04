@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from typing import Iterable, Union
 
 from PySide6.QtCore import Slot
-from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QCheckBox, QComboBox, QLineEdit, QPlainTextEdit, QPushButton, QSlider, QSpinBox, QWidget
 
 from .widgets import ButtonOpensFileDialog, QPlainTextEditFocusSignaled
