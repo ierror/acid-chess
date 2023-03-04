@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Iterable, Union
 
 from PySide6.QtCore import Slot
-from PySide6.QtWidgets import QCheckBox, QComboBox, QLineEdit, QPlainTextEdit, QSlider, QSpinBox, QWidget
+from PySide6.QtWidgets import QCheckBox, QComboBox, QLineEdit, QPlainTextEdit, QPushButton, QSlider, QSpinBox, QWidget
 
 from .widgets import ButtonOpensFileDialog, QPlainTextEditFocusSignaled
 
@@ -32,6 +32,8 @@ def _connect_ui_elm(ui_elm, callback):
         pass
     elif isinstance(ui_elm, QPlainTextEditFocusSignaled):
         ui_elm.editingFinished.connect(callback)
+    elif isinstance(ui_elm, QPushButton):
+        ui_elm.clicked.connect(callback)
     else:
         raise NotImplementedError(type(ui_elm))
 
@@ -89,6 +91,8 @@ class ReactiveAttrSynced(ReactiveBase):
             value = self.ui_elm.value()
         elif isinstance(self.ui_elm, QPlainTextEdit):
             value = self.ui_elm.toPlainText()
+        elif isinstance(self.ui_elm, QPushButton):
+            value = not getattr(self.obj, self.attr)
         else:
             raise NotImplementedError(type(self.ui_elm))
 
@@ -111,6 +115,8 @@ class ReactiveAttrSynced(ReactiveBase):
             self.ui_elm.set_value(value)
         elif isinstance(self.ui_elm, QPlainTextEdit):
             self.ui_elm.setPlainText(value)
+        elif isinstance(self.ui_elm, QPushButton):
+            pass
         else:
             raise NotImplementedError(type(self.ui_elm))
 

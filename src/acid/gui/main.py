@@ -61,8 +61,6 @@ UI_MAPPINGS = {
     "engine": {engine_idx: engine.name for (engine_idx, engine) in enumerate(engines)},
 }
 
-DISABLE_VOICE = False
-
 
 class MainWindow(QMainWindow):
     ui = None
@@ -169,6 +167,7 @@ class MainWindow(QMainWindow):
             self.settings, "collect_training_data_threshold_perc", self.ui.spinBoxCollectTrainingDataThreshold
         )
         ReactiveAttrSynced(self.settings, "visual_debug_delay_s", self.ui.checkBoxVisualDebugDelay)
+        ReactiveAttrSynced(self.settings, "sound_muted", self.ui.pushButtonMuteUnmute)
 
         # set save games dir default path
         if self.settings.save_games_dir is None:
@@ -223,6 +222,7 @@ class MainWindow(QMainWindow):
             self.log(f"Saving training data to {self.settings.collect_training_data_dir}")
 
         # ensure initial state
+        self.action_opening_book_selected()
         self.action_camera_changed()
         self.update_board_rendering()
 
@@ -431,7 +431,8 @@ class MainWindow(QMainWindow):
     def action_opening_book_selected(self):
         try:
             self.opening_book_reader = None
-            self.opening_book_reader = chess.polyglot.open_reader(self.game.opening_book_path)
+            if self.game.opening_book_path:
+                self.opening_book_reader = chess.polyglot.open_reader(self.game.opening_book_path)
         except OSError as e:
             self.game.opening_book_path = None
             self.show_alert(str(e))
@@ -507,12 +508,11 @@ class MainWindow(QMainWindow):
             getattr(self.ui, label).setText(text)
 
     def say(self, text, update_status_label=True):
+        print(self.settings.sound_muted)
         if update_status_label:
             self.labels["labelStatus"] = text
-
-        if DISABLE_VOICE:
+        if self.settings.sound_muted:
             return
-
         tts = gTTS(text=text, lang="en", tld="us")
         with tempfile.NamedTemporaryFile() as fp:
             tts.save(fp.name)

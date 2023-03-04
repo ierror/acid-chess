@@ -1,6 +1,5 @@
 from abc import ABCMeta, abstractmethod
 from types import NoneType
-from typing import Iterable
 
 from PySide6.QtCore import QSettings
 

@@ -11,7 +11,7 @@ class Settings(QTSettingsSyncedDataclassMixin):
     collect_training_data_dir: Path = None
     collect_training_data_threshold_perc: int = 80
     visual_debug_delay_s: bool = False
-    brightness_adjust: int = 0
+    sound_muted: bool = False
 
     _qt_settings_synced = [
         "save_games_dir",
@@ -19,7 +19,7 @@ class Settings(QTSettingsSyncedDataclassMixin):
         "collect_training_data_threshold_perc",
         "collect_training_data_dir",
         "visual_debug_delay_s",
-        "brightness_adjust",
+        "sound_muted",
     ]
 
     def __init__(self):
