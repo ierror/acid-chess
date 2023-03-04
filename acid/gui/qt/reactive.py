@@ -88,7 +88,6 @@ class ReactiveAttrSynced(ReactiveBase):
             value = not getattr(self.obj, self.attr)
         else:
             raise NotImplementedError(type(self.ui_elm))
-
         setattr(self.obj, self.attr, value)
 
     @Slot()

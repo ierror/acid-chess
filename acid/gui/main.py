@@ -391,30 +391,33 @@ class MainWindow(QMainWindow):
             str(self.settings.save_games_dir),
             "*.json",
         )
-        # force re-creation of "cached" property
-        self._game_save_dir = None
-        self.game.set_save_dir(Path(json_game_path).parent)
-        self.game.load()
-        self.board.reset()
-        for move in self.game.pgn.mainline_moves():
-            self.board.push(move)
-        self.update_board_rendering()
+        if json_game_path:
+            # force re-creation of "cached" property
+            self._game_save_dir = None
+            self.game.set_save_dir(Path(json_game_path).parent)
+            self.game.load()
+            self.board.reset()
+            for move in self.game.pgn.mainline_moves():
+                self.board.push(move)
+            self.update_board_rendering()
 
     @Slot()
     def action_save_games_to(self):
         dirname = QFileDialog.getExistingDirectory(
             self, "Select directory where to save games", str(self.settings.save_games_dir)
         )
-        self.settings.save_games_dir = dirname
-        # force re-creation of "cached" property
-        self._game_save_dir = None
+        if dirname:
+            self.settings.save_games_dir = dirname
+            # force re-creation of "cached" property
+            self._game_save_dir = None
 
     @Slot()
     def action_collect_training_data_to(self):
         dirname = QFileDialog.getExistingDirectory(
             self, "Select directory where to save training data", str(self.settings.collect_training_data_dir)
         )
-        self.settings.collect_training_data_dir = dirname
+        if dirname:
+            self.settings.collect_training_data_dir = dirname
 
     @Slot()
     def action_opening_book_selected(self):

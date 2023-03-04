@@ -16,7 +16,7 @@ class ButtonOpensFileDialog:
         target_obj,
         target_attr,
         display_filter=None,
-        default_text="not selected",
+        default_text="choose",
     ):
         self.parent = parent
         self.button_elm = button_elm
@@ -37,9 +37,10 @@ class ButtonOpensFileDialog:
 
     def open_dialog(self):
         (path_selected, _) = getattr(QFileDialog, self.dialog_method)(self.parent, **self.dialog_kwargs)
-        self.value_raw = path_selected
-        self.set_value(self.value_raw)
-        setattr(self.target_obj, self.target_attr, self.value_raw)
+        if path_selected:
+            self.value_raw = path_selected
+            self.set_value(self.value_raw)
+            setattr(self.target_obj, self.target_attr, self.value_raw)
 
 
 class QPlainTextEditFocusSignaled(QPlainTextEdit):
