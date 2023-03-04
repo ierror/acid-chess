@@ -51,6 +51,7 @@ class Game(QTSettingsSyncedDataclassMixin):
     _pgn = None
     _save_dir = None
     _move_stack = None
+    _flush_to_disc = False
 
     def __init__(self, logger, **kwargs):
         self._logger = logger
@@ -84,6 +85,10 @@ class Game(QTSettingsSyncedDataclassMixin):
     def json_state_path(self):
         return self._save_dir / "state.json"
 
+    def enable_disc_flush(self):
+        self._flush_to_disc = True
+        self.persist()
+
     def set_save_dir(self, save_dir):
         self._save_dir = save_dir
         return self
@@ -110,7 +115,7 @@ class Game(QTSettingsSyncedDataclassMixin):
         self.persist()
 
     def persist(self):
-        if not self._save_dir:
+        if not self._save_dir or not self._flush_to_disc:
             return
 
         self._save_dir.mkdir(parents=True, exist_ok=True)

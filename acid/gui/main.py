@@ -341,6 +341,7 @@ class MainWindow(QMainWindow):
     @Slot()
     def action_start_stop(self):
         if self.game_state in (GameState.NULL, GameState.PAUSED, GameState.FINISHED):
+            self.game.enable_disc_flush()
             self.game_state = GameState.RUNNING
             self.log("game started")
         elif self.game_state == GameState.RUNNING:
@@ -744,7 +745,7 @@ class MainWindow(QMainWindow):
                 if self.board.is_check():
                     self.say("check!")
 
-            # collect training data
+            # collect squares training data
             if self.settings.collect_training_data:
                 squares = self.board_detector.cut_squares(image_4p_transformed, squares_coords)
                 squares.sort(self.board.a1_corner)
