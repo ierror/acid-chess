@@ -147,9 +147,8 @@ class ReactiveAttrToolTip(ReactiveBase):
 
 
 @dataclass
-class ReactiveAttrBoolIcon(ReactiveBase):
-    icon_true: QIcon
-    icon_false: QIcon
+class ReactiveAttrIcon(ReactiveBase):
+    values_to_icon: dict
 
     @Slot()
     def ui_elm_changed(self):
@@ -157,7 +156,7 @@ class ReactiveAttrBoolIcon(ReactiveBase):
 
     @Slot()
     def attr_changed(self):
-        if getattr(self.obj, self.attr):
-            self.ui_elm.setIcon(self.icon_true)
-        else:
-            self.ui_elm.setIcon(self.icon_false)
+        for values, icon in self.values_to_icon.items():
+            value = getattr(self.obj, self.attr)
+            if value in values:
+                self.ui_elm.setIcon(icon)

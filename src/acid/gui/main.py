@@ -48,7 +48,7 @@ from acid.game import Game  # isort:skip
 from acid.gui.res import icons  # isort:skip
 from acid.gui.logs import Logger  # isort:skip
 from acid.gui.qt.reactive import ReactiveAttrSynced  # isort:skip
-from acid.gui.qt.reactive import ReactiveAttrBoolIcon, ReactiveAttrPresence, ReactiveAttrToolTip
+from acid.gui.qt.reactive import ReactiveAttrIcon, ReactiveAttrPresence, ReactiveAttrToolTip
 from acid.gui.qt.widgets import ButtonOpensFileDialog, QPlainTextEditFocusSignaled
 
 from acid.gui.qt.widgets import PictureLabelFitToParent  # isort:skip
@@ -171,13 +171,11 @@ class MainWindow(QMainWindow):
         ReactiveAttrSynced(self.settings, "visual_debug_delay_s", self.ui.checkBoxVisualDebugDelay)
 
         ReactiveAttrSynced(self.settings, "sound_muted", self.ui.pushButtonMuteUnmute)
-        ReactiveAttrBoolIcon(
-            self.settings,
-            "sound_muted",
-            self.ui.pushButtonMuteUnmute,
-            QIcon(":/sound-off.svg"),
-            QIcon(":/sound-high.svg"),
-        )
+        values_to_icon = {
+            (True,): QIcon(":/sound-off.svg"),
+            (False,): QIcon(":/sound-high.svg"),
+        }
+        ReactiveAttrIcon(self.settings, "sound_muted", self.ui.pushButtonMuteUnmute, values_to_icon=values_to_icon)
 
         # set save games dir default path
         if self.settings.save_games_dir is None:
@@ -214,7 +212,14 @@ class MainWindow(QMainWindow):
         self.ui.pushButtonReDetectCorners.setVisible(False)
 
         QShortcut(QKeySequence(Qt.ALT | Qt.Key_Z), self.ui).activated.connect(self.action_move_undo)
+
+        values_to_icon = {
+            (GameState.NULL, GameState.FINISHED, GameState.PAUSED): QIcon(":/play.svg"),
+            (GameState.RUNNING,): QIcon(":/pause.svg"),
+        }
+        ReactiveAttrIcon(self, "game_state", self.ui.pushButtonStartStop, values_to_icon=values_to_icon)
         self.ui.pushButtonStartStop.clicked.connect(self.action_start_stop)
+
         self.ui.pushButtonMoveUndo.clicked.connect(self.action_move_undo)
 
         # monospace fonts
@@ -354,11 +359,9 @@ class MainWindow(QMainWindow):
     @Slot()
     def action_start_stop(self):
         if self.game_state in (GameState.NULL, GameState.PAUSED, GameState.FINISHED):
-            self.ui.pushButtonStartStop.setIcon(QIcon(":/pause.svg"))
             self.game_state = GameState.RUNNING
             self.log("game started")
         elif self.game_state == GameState.RUNNING:
-            self.ui.pushButtonStartStop.setIcon(QIcon(":/play.svg"))
             self.game_state = GameState.PAUSED
             self.log("game paused")
 
