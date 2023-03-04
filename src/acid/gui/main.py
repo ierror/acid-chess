@@ -47,9 +47,11 @@ from acid.engines import engines, Engine  # isort:skip
 from acid.game import Game  # isort:skip
 from acid.gui.res import icons  # isort:skip
 from acid.gui.logs import Logger  # isort:skip
-from acid.gui.qt.reactive import ReactiveAttrPresence, ReactiveAttrSynced, ReactiveAttrToolTip  # isort:skip
-from acid.gui.qt.widgets import PictureLabelFitToParent  # isort:skip
+from acid.gui.qt.reactive import ReactiveAttrSynced  # isort:skip
+from acid.gui.qt.reactive import ReactiveAttrBoolIcon, ReactiveAttrPresence, ReactiveAttrToolTip
 from acid.gui.qt.widgets import ButtonOpensFileDialog, QPlainTextEditFocusSignaled
+
+from acid.gui.qt.widgets import PictureLabelFitToParent  # isort:skip
 
 from acid.gui.settings import Settings  # isort:skip
 from acid.gui.state import BoardDetectorState, GameState  # isort:skip
@@ -167,7 +169,15 @@ class MainWindow(QMainWindow):
             self.settings, "collect_training_data_threshold_perc", self.ui.spinBoxCollectTrainingDataThreshold
         )
         ReactiveAttrSynced(self.settings, "visual_debug_delay_s", self.ui.checkBoxVisualDebugDelay)
+
         ReactiveAttrSynced(self.settings, "sound_muted", self.ui.pushButtonMuteUnmute)
+        ReactiveAttrBoolIcon(
+            self.settings,
+            "sound_muted",
+            self.ui.pushButtonMuteUnmute,
+            QIcon(":/sound-off.svg"),
+            QIcon(":/sound-high.svg"),
+        )
 
         # set save games dir default path
         if self.settings.save_games_dir is None:

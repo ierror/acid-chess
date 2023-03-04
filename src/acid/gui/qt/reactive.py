@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Iterable, Union
 
 from PySide6.QtCore import Slot
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QCheckBox, QComboBox, QLineEdit, QPlainTextEdit, QPushButton, QSlider, QSpinBox, QWidget
 
 from .widgets import ButtonOpensFileDialog, QPlainTextEditFocusSignaled
@@ -55,11 +56,6 @@ class ReactiveBase(metaclass=ABCMeta):
         # propagate initial value
         self.attr_changed()
 
-    @property
-    @abstractmethod
-    def type(self):
-        pass
-
     @abstractmethod
     def ui_elm_changed(self):
         pass
@@ -71,8 +67,6 @@ class ReactiveBase(metaclass=ABCMeta):
 
 @dataclass
 class ReactiveAttrSynced(ReactiveBase):
-    type = "synced"
-
     def __post_init__(self):
         _connect_ui_elm(self.ui_elm, self.ui_elm_changed)
         super().__post_init__()
@@ -123,8 +117,7 @@ class ReactiveAttrSynced(ReactiveBase):
 
 @dataclass
 class ReactiveAttrPresence(ReactiveBase):
-    type = "presence"
-    visible_for: Union[Iterable, bool] = None
+    visible_for: Union[Iterable, bool]
 
     @Slot()
     def ui_elm_changed(self):
@@ -143,8 +136,6 @@ class ReactiveAttrPresence(ReactiveBase):
 
 @dataclass
 class ReactiveAttrToolTip(ReactiveBase):
-    type = "tooltip"
-
     @Slot()
     def ui_elm_changed(self):
         pass
@@ -153,3 +144,20 @@ class ReactiveAttrToolTip(ReactiveBase):
     def attr_changed(self):
         value = getattr(self.obj, self.attr)
         self.ui_elm.setToolTip(str(value))
+
+
+@dataclass
+class ReactiveAttrBoolIcon(ReactiveBase):
+    icon_true: QIcon
+    icon_false: QIcon
+
+    @Slot()
+    def ui_elm_changed(self):
+        pass
+
+    @Slot()
+    def attr_changed(self):
+        if getattr(self.obj, self.attr):
+            self.ui_elm.setIcon(self.icon_true)
+        else:
+            self.ui_elm.setIcon(self.icon_false)
