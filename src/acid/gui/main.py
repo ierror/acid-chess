@@ -13,7 +13,7 @@ import tempfile
 from copy import copy
 from functools import cached_property
 from io import BytesIO
-from multiprocessing import freeze_support
+from multiprocessing import Lock, freeze_support
 from pathlib import Path
 from random import choice
 from time import sleep
@@ -70,7 +70,6 @@ class MainWindow(QMainWindow):
     debug_images_detector = []
     rendered_image = None
     frame_num = 0
-    camera_ready = False
     detector_result = None
     close_requested = False
     current_frame = None
@@ -83,6 +82,7 @@ class MainWindow(QMainWindow):
     _game_save_dir = None
     _engine = None
     _camera = None
+    _camera_switch_mutex = Lock()
 
     board_detector = Detector()
     settings = Settings()
@@ -281,7 +281,7 @@ class MainWindow(QMainWindow):
 
     @cached_property
     def cameras(self):
-        # uses a cached property to ensure always the same order of cameras in this session
+        # uses a cached property to ensure always the same order of cameras for this session
         return QMediaDevices.videoInputs()
 
     @property
@@ -314,15 +314,6 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def action_camera_changed(self):
-        self.camera_ready = False
-
-        if self._camera:
-            self._camera.errorOccurred.disconnect()
-            self.camera_capture.imageCaptured.disconnect()
-            self.camera_capture.errorOccurred.disconnect()
-            if self._camera.isActive():
-                self._camera.stop()
-
         available_cameras = QMediaDevices.videoInputs()
         if len(available_cameras) == 0:
             self.log("No cameras available", is_error=True)
@@ -330,17 +321,20 @@ class MainWindow(QMainWindow):
         elif self.game.camera_idx > len(available_cameras) - 1:
             self.game.camera_idx = 0
 
-        self._camera = QCamera(available_cameras[self.game.camera_idx])
-        self._camera.errorOccurred.connect(self.on_camera_error)
-        self.camera_capture = QImageCapture(self._camera)
-        self.camera_capture.imageCaptured.connect(self.on_image_captured)
-        self.camera_capture.errorOccurred.connect(self.on_capture_error)
+        with self._camera_switch_mutex:
+            if self._camera:
+                self._camera.stop()
 
-        self._capture_session = QMediaCaptureSession()
-        self._capture_session.setCamera(self._camera)
-        self._capture_session.setImageCapture(self.camera_capture)
-        self._camera.start()
-        self.camera_ready = True
+            self._camera = QCamera(available_cameras[self.game.camera_idx])
+            self._camera.errorOccurred.connect(self.on_camera_error)
+            self.camera_capture = QImageCapture(self._camera)
+            self.camera_capture.imageCaptured.connect(self.on_image_captured)
+            self.camera_capture.errorOccurred.connect(self.on_capture_error)
+
+            self._capture_session = QMediaCaptureSession()
+            self._capture_session.setImageCapture(self.camera_capture)
+            self._capture_session.setCamera(self._camera)
+            self._camera.start()
 
     @Slot(int, QImage)
     def on_image_captured(self, id, image):
@@ -542,14 +536,17 @@ class MainWindow(QMainWindow):
                 break
 
             if self.current_frame is None:
-                if self.camera_ready:
-                    self.camera_capture.capture()
+                with self._camera_switch_mutex:
+                    if self._camera.isActive():
+                        self.camera_capture.capture()
                 continue
 
             self.frame_num += 1
             frame = copy(self.current_frame)
-            if self.camera_ready:
-                self.camera_capture.capture()
+
+            with self._camera_switch_mutex:
+                if self._camera.isActive():
+                    self.camera_capture.capture()
 
             self.log(f"Frame nr. {self.frame_num}", stdout_only=True)
             if self.board_detector_state == BoardDetectorState.NULL:
@@ -767,7 +764,7 @@ class MainWindow(QMainWindow):
                     if square.cl_probability < self.settings.collect_training_data_threshold_perc:
                         train_im_path = self.settings.collect_training_data_dir / "squares" / square.cl_readable
                         train_im_path.mkdir(parents=True, exist_ok=True)
-                        cv2.imwrite(os.path.join(train_im_path, f"{uuid4()}.jpg"), square.image)
+                        cv2.imwrite(str(train_im_path / f"{uuid4()}.jpg"), square.image)
 
     def close(self, *args):
         if self.close_requested:
@@ -775,13 +772,13 @@ class MainWindow(QMainWindow):
 
         self.log("close requested, cleaning things up...")
         self.close_requested = True
-
         if self._camera and self._camera.isActive():
             self._camera.stop()
         if self.engine:
             self.engine.quit()
         self.update_ui_timer.stop()
         self.vis_debug_timer_detector.stop()
+        self.threadpool.waitForDone()
         QApplication.exit(0)
 
 
