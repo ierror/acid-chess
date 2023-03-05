@@ -18,7 +18,7 @@ NOTEBOOKS_TMP_DIR = PROJECT_ROOT / "notebooks" / "tmp"
 NOTEBOOKS_LOGS_DIR = NOTEBOOKS_TMP_DIR / "logs"
 NOTEBOOKS_CHECKPOINTS_DIR = NOTEBOOKS_TMP_DIR / "checkpoints"
 
-GUI_DIR = PROJECT_ROOT / "src" / "acid" / "gui"
+GUI_DIR = PROJECT_ROOT / "acid" / "gui"
 GUI_RES_DIR = GUI_DIR / "res"
 
 ENGINES_DIR = DATA_DIR / "engines"
