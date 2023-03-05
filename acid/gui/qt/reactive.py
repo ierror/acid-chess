@@ -98,7 +98,8 @@ class ReactiveAttrSynced(ReactiveBase):
         elif isinstance(self.ui_elm, QLineEdit):
             self.ui_elm.setText(value)
         elif isinstance(self.ui_elm, QComboBox):
-            self.ui_elm.setCurrentIndex(value)
+            if value is not None:
+                self.ui_elm.setCurrentIndex(value)
         elif isinstance(self.ui_elm, QSlider):
             self.ui_elm.setValue(value)
         elif isinstance(self.ui_elm, QSpinBox):

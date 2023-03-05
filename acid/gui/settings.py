@@ -18,7 +18,6 @@ class Settings(QTSettingsSyncedDataclassMixin):
         "collect_training_data",
         "collect_training_data_threshold_perc",
         "collect_training_data_dir",
-        "visual_debug_delay_s",
         "sound_muted",
     ]
 

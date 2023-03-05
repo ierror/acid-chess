@@ -342,6 +342,8 @@ class MainWindow(QMainWindow):
     def action_start_stop(self):
         if self.game_state in (GameState.NULL, GameState.PAUSED, GameState.FINISHED):
             self.game.enable_disc_flush()
+            # clear to start with fresh debug images
+            self.debug_images_detector.clear()
             self.game_state = GameState.RUNNING
             self.log("game started")
         elif self.game_state == GameState.RUNNING:
@@ -481,7 +483,7 @@ class MainWindow(QMainWindow):
         except IndexError:
             pass
 
-        self.vis_debug_timer_detector.setInterval(max(int(self.settings.visual_debug_delay_s) * 1000, 50))
+        self.vis_debug_timer_detector.setInterval(max(int(self.settings.visual_debug_delay_s) * 2000, 50))
 
     @Slot()
     def update_ui(self):
@@ -544,23 +546,23 @@ class MainWindow(QMainWindow):
                 continue
 
             # detect board corners
-            while self.board_detector_state == BoardDetectorState.RUNNING_CORNER_DETECTION:
-                self.labels["labelStatus"] = "Board corner detection"
+            self.labels["labelStatus"] = "Board corner detection"
 
-                for result in self.board_detector.detect_board_corners(frame):
-                    self.log(result.message, result.timestamp)
-                    board_edges = result.detected_obj
-                    if board_edges is not None and board_edges.any():
-                        board_warped = result.debug_image
-                        self.board_detector_state = BoardDetectorState.RUNNING_SQUARE_DETECTION
+            for result in self.board_detector.detect_board_corners(frame):
+                self.log(result.message, result.timestamp)
+                board_edges = result.detected_obj
+                if board_edges is not None and board_edges.any():
+                    # board detected!
+                    board_warped = result.debug_image
+                    self.board_detector_state = BoardDetectorState.RUNNING_SQUARE_DETECTION
+                else:
+                    # not detected
                     if result.debug_image is not None:
                         self.debug_images_detector.append(copy(result.debug_image))
 
-                if self.close_requested:
-                    break
-
+            if self.board_detector_state != BoardDetectorState.RUNNING_SQUARE_DETECTION:
                 # edges not detected => try on next round
-                break
+                continue
 
             # detect squares
             while self.board_detector_state == BoardDetectorState.RUNNING_SQUARE_DETECTION:
