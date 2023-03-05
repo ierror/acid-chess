@@ -15,7 +15,7 @@ from torchvision.transforms.functional import to_pil_image
 
 from .geometry import Line, Point
 from .torch.setup import BoardModelSetup, SquareModelSetup, get_trainer
-from .utils.cv2 import put_text
+from .utils.cv2 import put_text, resize_and_pad
 from .utils.timezone import datetime_local
 
 
@@ -33,19 +33,20 @@ class Result:
         if self.debug_image is not None:
             self.debug_image = cv2.resize(self.debug_image, (1280, 720))
             put_text(self.debug_image, self.message, pos=(10, 10))
+
         self.timestamp = datetime_local()
 
 
 class Detector:
     image = None
-    image_size = (BoardModelSetup.image_size[0] * 3, BoardModelSetup.image_size[1] * 3)
+    image_size = (BoardModelSetup.image_size[0] * 4, BoardModelSetup.image_size[1] * 4)
 
     def prepare_image(self, image):
-        image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-        image = ImageOps.pad(image, self.image_size)
-        image = np.asarray(image)
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        return image
+        height, width, *_ = image.shape
+        if width == self.image_size[0] and height == self.image_size[1]:
+            # image already in the right shape
+            return image
+        return resize_and_pad(image, self.image_size)
 
     @torch.no_grad()
     def detect_board_corners(self, image):
@@ -55,6 +56,7 @@ class Detector:
         # resize to fit to the detector model
         image_detector = self.image.copy()
         image_detector = cv2.resize(image_detector, BoardModelSetup.image_size)
+        image_detector = cv2.cvtColor(image_detector, cv2.COLOR_BGR2RGB)
         yield Result("detect board corners: resized board", image_detector)
 
         # transform
@@ -79,7 +81,7 @@ class Detector:
         _, gray = cv2.threshold(gray, 110, 1, cv2.THRESH_BINARY)
 
         # resize back to working size and extract contours from mask image
-        gray = cv2.resize(gray, self.image_size)
+        gray = self.prepare_image(gray)
         contours, _hierarchy = cv2.findContours(gray[:, :, 0], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if not contours:
             yield Result("detect board corners: bord contour extraction failed", self.image_debug, success=False)
@@ -118,7 +120,7 @@ class Detector:
             yield Result("detect board corners: four_point_transform failed", self.image_debug, success=False)
             return
 
-        yield Result("detect board corners: board warped", warped, detected_obj=board_edges)
+        yield Result("detect board corners: board warped", image=warped, detected_obj=board_edges)
 
     def detect_squares(self, warped):
         if warped is None or not warped.any():

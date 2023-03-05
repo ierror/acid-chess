@@ -17,11 +17,11 @@ import qimage2ndarray
 from cairosvg import svg2png
 from gtts import gTTS
 from imutils.perspective import four_point_transform
-from PIL import Image
+from PIL import Image, ImageOps
 from PIL.ImageQt import ImageQt
 from playsound import playsound
 from PySide6 import QtCore
-from PySide6.QtCore import QFile, QStandardPaths, Qt, QThreadPool, QTimer, Slot
+from PySide6.QtCore import QBuffer, QFile, QStandardPaths, Qt, QThreadPool, QTimer, Slot
 from PySide6.QtGui import QFont, QFontDatabase, QIcon, QImage, QKeySequence, QPixmap, QShortcut
 from PySide6.QtMultimedia import QCamera, QImageCapture, QMediaCaptureSession, QMediaDevices
 from PySide6.QtUiTools import QUiLoader
@@ -325,10 +325,8 @@ class MainWindow(QMainWindow):
 
     @Slot(int, QImage)
     def on_image_captured(self, id, image):
-        image = image.scaled(
-            *self.board_detector.image_size, QtCore.Qt.KeepAspectRatio, QtCore.Qt.TransformationMode.FastTransformation
-        )
-        self.current_frame = copy(qimage2ndarray.rgb_view(image))
+        image = copy(qimage2ndarray.rgb_view(image))
+        self.current_frame = image
 
     @Slot(int, QImageCapture.Error, str)
     def on_capture_error(self, id, error, error_string):
@@ -483,7 +481,7 @@ class MainWindow(QMainWindow):
         except IndexError:
             pass
 
-        self.vis_debug_timer_detector.setInterval(max(int(self.settings.visual_debug_delay_s) * 2000, 50))
+        self.vis_debug_timer_detector.setInterval(max(int(self.settings.visual_debug_delay_s) * 1000, 50))
 
     @Slot()
     def update_ui(self):
@@ -503,7 +501,6 @@ class MainWindow(QMainWindow):
             getattr(self.ui, label).setText(text)
 
     def say(self, text, update_status_label=True):
-        print(self.settings.sound_muted)
         if update_status_label:
             self.labels["labelStatus"] = text
         if self.settings.sound_muted:
@@ -546,23 +543,23 @@ class MainWindow(QMainWindow):
                 continue
 
             # detect board corners
-            self.labels["labelStatus"] = "Board corner detection"
-
-            for result in self.board_detector.detect_board_corners(frame):
-                self.log(result.message, result.timestamp)
-                board_edges = result.detected_obj
-                if board_edges is not None and board_edges.any():
-                    # board detected!
-                    board_warped = result.debug_image
-                    self.board_detector_state = BoardDetectorState.RUNNING_SQUARE_DETECTION
-                else:
-                    # not detected
-                    if result.debug_image is not None:
-                        self.debug_images_detector.append(copy(result.debug_image))
-
-            if self.board_detector_state != BoardDetectorState.RUNNING_SQUARE_DETECTION:
+            while self.board_detector_state == BoardDetectorState.RUNNING_CORNER_DETECTION:
+                self.labels["labelStatus"] = "Board corner detection"
+                for result in self.board_detector.detect_board_corners(frame):
+                    self.log(result.message, result.timestamp)
+                    board_edges = result.detected_obj
+                    if board_edges is not None and board_edges.any():
+                        # board detected!
+                        board_warped = result.image
+                        self.board_detector_state = BoardDetectorState.RUNNING_SQUARE_DETECTION
+                    else:
+                        # not detected
+                        if result.debug_image is not None:
+                            self.debug_images_detector.append(copy(result.debug_image))
+                if self.close_requested:
+                    break
                 # edges not detected => try on next round
-                continue
+                break
 
             # detect squares
             while self.board_detector_state == BoardDetectorState.RUNNING_SQUARE_DETECTION:
@@ -593,9 +590,9 @@ class MainWindow(QMainWindow):
                 continue
 
             # board detected!
-            image = self.board_detector.prepare_image(frame.copy())
+            image = self.board_detector.prepare_image(copy(frame))
             image = four_point_transform(image, board_edges)
-            image_4p_transformed = image.copy()
+            image_4p_transformed = copy(image)
             squares = self.board_detector.cut_squares(image, squares_coords)
 
             if self.board.a1_corner is None:
@@ -639,7 +636,6 @@ class MainWindow(QMainWindow):
                         (255, 255, 255),
                         2,
                     )
-
             self.debug_images_detector.append(image)
 
             # engine move
@@ -716,7 +712,8 @@ class MainWindow(QMainWindow):
             self.game.update(
                 move_stack=self.board.move_stack, board_fen=self.board.board_fen(), a1_corner=self.board.a1_corner
             )
-            playsound(conf.GUI_RES_DIR.joinpath("move.wav"))
+            if not self.settings.sound_muted:
+                playsound(conf.GUI_RES_DIR.joinpath("move.wav"))
             self.update_board_rendering()
 
             # Game over?
