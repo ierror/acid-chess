@@ -10,7 +10,7 @@ class Settings(QTSettingsSyncedDataclassMixin):
     collect_training_data: bool = False
     collect_training_data_dir: Path = None
     collect_training_data_threshold_perc: int = 99
-    visual_debug_delay_s: bool = False
+    visual_debug_delay: bool = False
     sound_muted: bool = False
 
     _qt_settings_synced = [

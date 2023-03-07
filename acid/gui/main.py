@@ -172,7 +172,7 @@ class MainWindow(QMainWindow):
             collect_training_data_dir_def = documents_dir / conf.PROGRAM_NAME / "TrainingData"
             self.settings.collect_training_data_dir = collect_training_data_dir_def
 
-        # engine elms visibility based on opponent_type_idx
+        # show engine options based on selected  opponent
         for ui_elm in [
             self.ui.labelEngine,
             self.ui.comboBoxEngine,
@@ -180,6 +180,9 @@ class MainWindow(QMainWindow):
             self.ui.spinBoxEngineTime,
             self.ui.labelEngineConfig,
             self.ui.plainTextEditEngineOptions,
+            self.ui.labelOpeningBook,
+            self.ui.pushButtonOpeningBookRemove,
+            self.ui.pushButtonOpeningBook,
         ]:
             ReactiveAttrPresence(self.game, "opponent_type_idx", ui_elm, visible_for=(0, 1))
 
