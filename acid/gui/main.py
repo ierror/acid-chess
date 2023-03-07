@@ -1,5 +1,6 @@
 import tempfile
 from copy import copy
+from dataclasses import dataclass
 from functools import cached_property
 from io import BytesIO
 from multiprocessing import Lock
@@ -48,6 +49,20 @@ UI_MAPPINGS = {
 TIMER_DEFAULT_MS = 50
 
 
+@dataclass
+class Feedback:
+    window: QMainWindow
+    message: str
+    show_message: bool = True
+    log_message: bool = True
+    speak_message_overwrite: str = None
+    speak_message: bool = False
+
+    def __post_init__(self):
+        self.window.feedback_last = self
+        self.window.provide_feedback(self)
+
+
 class MainWindow(QMainWindow):
     ui = None
     camera_capture = None
@@ -57,10 +72,12 @@ class MainWindow(QMainWindow):
     detector_result = None
     close_requested = False
     current_frame = None
+    feedback_last = None
     opening_book_reader = None
     game_state = GameState.NULL
     board_detector_state = BoardDetectorState.NULL
     labels = {}
+    pause_text = None
 
     _capture_session = None
     _game_save_dir = None
@@ -204,8 +221,8 @@ class MainWindow(QMainWindow):
             (GameState.NULL, GameState.FINISHED, GameState.PAUSED): QIcon(":/play.svg"),
             (GameState.RUNNING,): QIcon(":/pause.svg"),
         }
-        ReactiveAttrIcon(self, "game_state", self.ui.pushButtonStartStop, values_to_icon=values_to_icon)
-        self.ui.pushButtonStartStop.clicked.connect(self.action_start_stop)
+        ReactiveAttrIcon(self, "game_state", self.ui.pushButtonStartPause, values_to_icon=values_to_icon)
+        self.ui.pushButtonStartPause.clicked.connect(self.action_start_pause)
 
         self.ui.pushButtonMoveUndo.clicked.connect(self.action_move_undo)
 
@@ -342,31 +359,32 @@ class MainWindow(QMainWindow):
         self.log(error_string, is_error=True)
 
     @Slot()
-    def action_start_stop(self):
+    def action_start_pause(self):
         if self.game_state in (GameState.NULL, GameState.PAUSED, GameState.FINISHED):
-            self.game.enable_disc_flush()
-            # clear to start with fresh debug images
+            # clear, to start with fresh debug images
             self.debug_images_buffer.clear()
+            self.game.enable_flush_to_disc()
+
+            # start detection of not already detected
+            if self.board_detector_state != BoardDetectorState.DETECTED:
+                self.board_detector_state = BoardDetectorState.RUNNING_CORNER_DETECTION
+            if self.game_state in (GameState.NULL, GameState.FINISHED):
+                self.log("game started")
+            else:
+                if self.feedback_last:
+                    self.provide_feedback(self.feedback_last)
+                self.log("game resumed")
             self.game_state = GameState.RUNNING
-            self.log("game started")
         elif self.game_state == GameState.RUNNING:
             self.game_state = GameState.PAUSED
+            self.pause_text = "paused"
             self.log("game paused")
-
-        if self.board_detector_state in [
-            BoardDetectorState.RUNNING_CORNER_DETECTION,
-            BoardDetectorState.RUNNING_SQUARE_DETECTION,
-        ]:
-            self.debug_images_buffer = []
-            self.board_detector_state = BoardDetectorState.NULL
-        else:
-            self.board_detector_state = BoardDetectorState.RUNNING_CORNER_DETECTION
 
     @Slot()
     def action_move_undo(self):
         self.game_state = GameState.PAUSED
-        self.log("undo requested, game paused, resume it when you and the board are ready")
-
+        self.feedback_last = None
+        self.pause_text = "Resume the game when you and the board are ready"
         try:
             self.board.pop()
             self.update_board_rendering()
@@ -505,15 +523,17 @@ class MainWindow(QMainWindow):
         for label, text in self.labels.items():
             getattr(self.ui, label).setText(text)
 
-    def say(self, text, update_status_label=True):
-        if update_status_label:
-            self.labels["labelStatus"] = text
-        if self.settings.sound_muted:
-            return
-        tts = gTTS(text=text, lang="en", tld="us")
-        with tempfile.NamedTemporaryFile() as fp:
-            tts.save(fp.name)
-            playsound(fp.name)
+    def provide_feedback(self, feedback):
+        if feedback.show_message:
+            self.labels["labelStatus"] = feedback.message
+        if feedback.log_message:
+            if self.feedback_last and self.feedback_last.message != feedback.message:
+                self.log(feedback.message)
+        if (feedback.speak_message or feedback.speak_message_overwrite) and not self.settings.sound_muted:
+            tts = gTTS(text=(feedback.speak_message_overwrite or feedback.message), lang="en", tld="us")
+            with tempfile.NamedTemporaryFile() as fp:
+                tts.save(fp.name)
+                playsound(fp.name, block=False)
 
     @Slot()
     def gameloop(self, *args, **kwargs):
@@ -644,6 +664,11 @@ class MainWindow(QMainWindow):
                     )
             self.debug_images_buffer.append(image)
 
+            if self.game_state == GameState.PAUSED:
+                self.labels["labelStatus"] = self.pause_text
+                sleep(0.1)
+                continue
+
             # engine move
             if self.board.turn == self.engine_color and engine_run_todo:
                 self.labels["labelStatus"] = "Bot is thinking"
@@ -651,6 +676,7 @@ class MainWindow(QMainWindow):
                 engine_move = None
                 move_type = ""
 
+                # opening book move available?
                 if self.opening_book_reader:
                     entries = list(self.opening_book_reader.find_all(self.board))
                     if entries:
@@ -658,21 +684,26 @@ class MainWindow(QMainWindow):
                         engine_move = entry.move
                         move_type = "Opening Book"
 
+                # fallback to engine move
                 if not engine_move:
                     engine_move = self.engine.play(self.board, self.game.engine_time_s).move
                     move_type = "Engine"
 
-                from_square = chess.SQUARE_NAMES[engine_move.from_square]
-                to_square = chess.SQUARE_NAMES[engine_move.to_square]
-                self.labels[
-                    "labelStatus"
-                ] = f"Waiting for {chess.COLOR_NAMES[self.board.turn]} to move: {from_square} to {to_square}"
-                self.say(f"{from_square} to {to_square}", update_status_label=False)
-                self.log(f"{move_type} move: {from_square} to {to_square}")
-                engine_run_todo = False
+                # was the game paused in the meantime?
+                if self.game_state != GameState.PAUSED:
+                    from_square = chess.SQUARE_NAMES[engine_move.from_square]
+                    to_square = chess.SQUARE_NAMES[engine_move.to_square]
+                    Feedback(
+                        self,
+                        message=f"Waiting for {chess.COLOR_NAMES[self.board.turn]} to move: {from_square} to {to_square}",
+                        speak_message_overwrite=f"{from_square} to {to_square}",
+                        log_message=False,
+                    )
+                    self.log(f"{move_type} move: {from_square} to {to_square}")
+                    engine_run_todo = False
 
             if not self.engine or (self.engine and self.board.turn != self.engine_color):
-                self.labels["labelStatus"] = f"Waiting for {chess.COLOR_NAMES[self.board.turn]} to move"
+                Feedback(self, message=f"Waiting for {chess.COLOR_NAMES[self.board.turn]} to move")
 
             move = self.board.diff(squares)
             if move is None:
@@ -726,21 +757,21 @@ class MainWindow(QMainWindow):
             outcome = self.board.outcome(claim_draw=True)
             if outcome is not None:
                 if outcome.termination == chess.Termination.CHECKMATE:
-                    self.say("Game over, checkmate!")
+                    Feedback(self, message="Game over, checkmate!", speak_message=True)
                 elif outcome.termination == chess.Termination.STALEMATE:
-                    self.say("Game over, stalemate!")
+                    Feedback(self, message="Game over, stalemate!", speak_message=True)
                 elif outcome.termination == chess.Termination.INSUFFICIENT_MATERIAL:
-                    self.say("Game over, insufficient material!")
+                    Feedback(self, message="Game over, insufficient material!", speak_message=True)
                 elif outcome.termination == chess.Termination.FIVEFOLD_REPETITION:
-                    self.say("Game over, fivefold repetition!")
+                    Feedback(self, message="Game over, fivefold repetition!", speak_message=True)
                 elif outcome.termination == chess.Termination.THREEFOLD_REPETITION:
-                    self.say("Game over, threefold repetition!")
+                    Feedback(self, message="Game over, threefold repetition!", speak_message=True)
                 elif outcome.termination == chess.Termination.VARIANT_WIN:
-                    self.say("Game over, variant win!")
+                    Feedback(self, message="Game over, variant win!", speak_message=True)
                 elif outcome.termination == chess.Termination.VARIANT_LOSS:
-                    self.say("Game over, variant loss!")
+                    Feedback(self, message="Game over, variant loss!", speak_message=True)
                 elif outcome.termination == chess.Termination.VARIANT_DRAW:
-                    self.say("Game over, variant draw!")
+                    Feedback(self, message="Game over, variant draw!", speak_message=True)
 
                 self.game.update(move_stack=self.board.move_stack, winner=outcome.winner)
                 self.game_state = GameState.FINISHED
@@ -749,7 +780,7 @@ class MainWindow(QMainWindow):
             # check?
             if self.engine and self.board.turn != self.engine_color:
                 if self.board.is_check():
-                    self.say("check!")
+                    Feedback(self, message="check!", speak_message=True)
 
             # collect squares training data
             if self.settings.collect_training_data:

@@ -85,7 +85,7 @@ class Game(QTSettingsSyncedDataclassMixin):
     def json_state_path(self):
         return self._save_dir / "state.json"
 
-    def enable_disc_flush(self):
+    def enable_flush_to_disc(self):
         self._flush_to_disc = True
         self.persist()
 
