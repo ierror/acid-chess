@@ -122,7 +122,7 @@ class Detector:
 
         return Result("detect board corners: board warped", image=warped, detected_obj=board_edges)
 
-    def detect_squares(self, warped, hough_lines_threshold=90):
+    def detect_squares(self, warped, hough_lines_threshold):
         if warped is None or not warped.any():
             return Result("detect squares: warped can't be empty", warped, success=False)
 

@@ -45,6 +45,8 @@ UI_MAPPINGS = {
     "engine": {engine_idx: engine.name for (engine_idx, engine) in enumerate(engines)},
 }
 
+TIMER_DEFAULT_MS = 50
+
 
 class MainWindow(QMainWindow):
     ui = None
@@ -150,7 +152,7 @@ class MainWindow(QMainWindow):
         ReactiveAttrSynced(
             self.settings, "collect_training_data_threshold_perc", self.ui.spinBoxCollectTrainingDataThreshold
         )
-        ReactiveAttrSynced(self.settings, "visual_debug_delay_s", self.ui.checkBoxVisualDebugDelay)
+        ReactiveAttrSynced(self.settings, "visual_debug_delay", self.ui.checkBoxVisualDebugDelay)
 
         ReactiveAttrSynced(self.settings, "sound_muted", self.ui.pushButtonMuteUnmute)
         values_to_icon = {
@@ -226,11 +228,11 @@ class MainWindow(QMainWindow):
         # timers
         self.update_ui_timer = QTimer()
         self.update_ui_timer.timeout.connect(self.update_ui)
-        self.update_ui_timer.start(100)
+        self.update_ui_timer.start(TIMER_DEFAULT_MS)
 
         self.vis_debug_timer_detector = QTimer()
         self.vis_debug_timer_detector.timeout.connect(self.update_ui_detector)
-        self.vis_debug_timer_detector.start(100)
+        self.vis_debug_timer_detector.start(TIMER_DEFAULT_MS)
 
         # framegrabber worker
         self.threadpool = QThreadPool()
@@ -481,7 +483,7 @@ class MainWindow(QMainWindow):
         except IndexError:
             pass
 
-        self.vis_debug_timer_detector.setInterval(max(int(self.settings.visual_debug_delay_s) * 1000, 50))
+        self.vis_debug_timer_detector.setInterval(max(int(self.settings.visual_debug_delay) * 1000, TIMER_DEFAULT_MS))
 
     @Slot()
     def update_ui(self):
@@ -559,28 +561,33 @@ class MainWindow(QMainWindow):
                     self.log("detect corners: failed, next try...")
 
             # detect squares
-            tries = 0
-            while self.board_detector_state == BoardDetectorState.RUNNING_SQUARE_DETECTION:
+            if self.board_detector_state == BoardDetectorState.RUNNING_SQUARE_DETECTION:
                 self.labels["labelStatus"] = "Square detection"
-                if self.close_requested:
-                    break
+                squares_coords = None
 
-                result = self.board_detector.detect_squares(board_warped)
-                if result.success:
-                    # squares detected!
-                    squares_coords = result.detected_obj
-                    self.board_detector_state = BoardDetectorState.DETECTED
-                    self.log("detect squares: success")
-                    break
-                else:
+                # try with different hough line thresholds
+                for hough_lines_threshold in reversed(range(30, 160, 10)):
+                    if self.close_requested:
+                        break
+
+                    result = self.board_detector.detect_squares(board_warped, hough_lines_threshold)
+                    if result.success:
+                        # squares detected!
+                        squares_coords = result.detected_obj
+                        self.board_detector_state = BoardDetectorState.DETECTED
+                        self.log(f"detect squares: success, HoughLinesP threshold used={hough_lines_threshold}")
+                        if not self.settings.visual_debug_delay:
+                            # no need to show old debug images...
+                            self.debug_images_buffer.clear()
+                        break
+                    else:
+                        self.log(f"detect squares: failed, HoughLinesP threshold used={hough_lines_threshold}")
+
+                # detection failed
+                if not squares_coords:
+                    # failed, back to corner detection
                     self.log("detect squares: failed, next try...")
-
-                if tries == 5:
-                    # back to corner detection after 5 tries
                     self.board_detector_state = BoardDetectorState.RUNNING_CORNER_DETECTION
-                    break
-
-                tries += 1
 
             if self.board_detector_state != BoardDetectorState.DETECTED:
                 continue
@@ -733,6 +740,7 @@ class MainWindow(QMainWindow):
                     self.say("Game over, variant draw!")
 
                 self.game.update(move_stack=self.board.move_stack, winner=outcome.winner)
+                self.game_state = GameState.FINISHED
                 break
 
             # check?
