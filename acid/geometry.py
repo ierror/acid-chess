@@ -20,7 +20,6 @@ class Point:
     def __eq__(self, other):
         return self.set == other.set
 
-    @cached_property
     def set(self) -> tuple[int, int]:
         return int(self.x), int(self.y)
 
@@ -43,27 +42,25 @@ class Line:
     def __eq__(self, other):
         return (self.p1 == other.p1 and self.p2 == other.p2) or (self.p1 == other.p2 and self.p2 == other.p1)
 
-    @cached_property
     def set(self) -> tuple[tuple[float, float], tuple[float, float]]:
         return (self.p1.x, self.p1.y), (self.p2.x, self.p2.y)
 
-    @cached_property
     def set_flat(self) -> tuple[float, float, float, float]:
         return self.p1.x, self.p1.y, self.p2.x, self.p2.y
 
-    @cached_property
+    @property
     def dx(self) -> float:
         return self.p2.x - self.p1.x
 
-    @cached_property
+    @property
     def dy(self) -> float:
         return self.p2.y - self.p1.y
 
-    @cached_property
-    def m(self) -> float:
-        return abs(self.dy / self.dx)
+    @property
+    def slope(self) -> float:
+        return self.dy / self.dx
 
-    @cached_property
+    @property
     def direction(self) -> int:
         if abs(self.dx) > abs(self.dy):
             return self.HORIZONTAL

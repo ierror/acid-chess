@@ -78,7 +78,6 @@ class SquareModelSetup:
     @classproperty
     def transforms(cls):
         means, stds = cls.image_normalize
-
         return {
             "train": transforms.Compose(
                 [

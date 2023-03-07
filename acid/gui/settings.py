@@ -9,7 +9,7 @@ class Settings(QTSettingsSyncedDataclassMixin):
     save_games_dir: Path = None
     collect_training_data: bool = False
     collect_training_data_dir: Path = None
-    collect_training_data_threshold_perc: int = 80
+    collect_training_data_threshold_perc: int = 99
     visual_debug_delay_s: bool = False
     sound_muted: bool = False
 

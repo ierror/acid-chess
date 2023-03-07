@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 import torch.nn
 from cv2.mat_wrapper import Mat
+from imutils import auto_canny
 from imutils.perspective import four_point_transform, order_points
 from PIL import Image, ImageOps
 from torch import nn
@@ -103,10 +104,10 @@ class Detector:
         # the second entry is the top-right, the third is the
         # bottom-right, and the fourth is the bottom-left
         board_edges = order_points(board_edges)
-        board_edges[0] = (board_edges[0][0] - 15, board_edges[0][1] - 15)
-        board_edges[1] = (board_edges[1][0] + 15, board_edges[1][1] - 15)
-        board_edges[2] = (board_edges[2][0] + 15, board_edges[2][1] + 15)
-        board_edges[3] = (board_edges[3][0] - 15, board_edges[3][1] + 15)
+        board_edges[0] = (board_edges[0][0] - 20, board_edges[0][1] - 20)
+        board_edges[1] = (board_edges[1][0] + 20, board_edges[1][1] - 20)
+        board_edges[2] = (board_edges[2][0] + 20, board_edges[2][1] + 20)
+        board_edges[3] = (board_edges[3][0] - 20, board_edges[3][1] + 20)
 
         for e in board_edges:
             cv2.circle(self.image_debug, (int(e[0]), int(e[1])), 25, (255, 0, 255), -1)
@@ -122,31 +123,32 @@ class Detector:
 
         yield Result("detect board corners: board warped", image=warped, detected_obj=board_edges)
 
-    def detect_squares(self, warped):
+    def detect_squares(self, warped, hough_lines_threshold=90):
         if warped is None or not warped.any():
             yield Result("detect squares: warped can't be empty", warped, success=False)
             return
 
         image_h, image_w = warped.shape[0:2]
 
-        img = cv2.cvtColor(warped, cv2.COLOR_BGR2GRAY)
-        yield Result("detect squares: img grayed", img)
+        image = cv2.cvtColor(warped, cv2.COLOR_BGR2GRAY)
+        yield Result("detect squares: img grayed", image)
 
-        img = cv2.medianBlur(img, 7)
-        yield Result("detect squares: img blurred", img)
+        image = cv2.medianBlur(image, 17)
+        yield Result("detect squares: blurred", image)
 
-        adapt_type = cv2.ADAPTIVE_THRESH_GAUSSIAN_C
-        thresh_type = cv2.THRESH_BINARY_INV
-        img = cv2.adaptiveThreshold(img, 255, adapt_type, thresh_type, 11, 2)
-        yield Result("detect squares: img adaptive thresholded", img)
+        image = auto_canny(image)
+        yield Result("detect squares: auto canny", image)
 
-        # groß nach klein 300, 150
         lines = cv2.HoughLinesP(
-            img, **{"rho": 1, "theta": np.pi / 180, "threshold": 200, "minLineLength": 100, "maxLineGap": 4098}
+            image,
+            rho=1,
+            theta=np.pi / 180,
+            threshold=hough_lines_threshold,
+            minLineLength=min(image_w, image_h) * 0.5,
+            maxLineGap=max(image_w, image_h),
         )
-
         if lines is None or len(lines) < 18:
-            yield Result(f"detect squares: len(lines) < 18", img, success=False)
+            yield Result(f"detect squares: len(lines) < 18", image, success=False)
             return
 
         lines_horizontal = []
@@ -160,9 +162,10 @@ class Detector:
                 lines_vertical.append(line)
 
         if not lines_horizontal or not lines_vertical:
-            yield Result("detect squares: no v or h lines", img, success=False)
+            yield Result("detect squares: no v or h lines", image, success=False)
             return
 
+        # sort lines
         lines_horizontal.sort(key=lambda l: l.p1.y + l.p2.y)
         lines_vertical.sort(key=lambda l: l.p1.x + l.p2.x)
 
@@ -173,13 +176,22 @@ class Detector:
                 if line_prev is not None:
                     distance = line.distance(line_prev)
                     # filter by distance
-                    if distance < image_size / 10:
+                    if distance < image_size / 11:
                         lines.remove(line)
                         continue
                     else:
                         line_prev = line
                 else:
                     line_prev = line
+
+        # remove outliers by slope
+        for lines in [lines_horizontal, lines_vertical]:
+            if len(lines) == 9:
+                continue
+            m_mean = mean([abs(line.slope) for line in lines])
+            for idx, line in enumerate(lines):
+                if abs(m_mean - abs(line.slope)) > m_mean * 0.05:
+                    lines.pop(idx)
 
         # take middle line and walk to bottom and top
         middle_line_index = len(lines_horizontal) // 2
@@ -206,10 +218,10 @@ class Detector:
                 4,
                 cv2.LINE_AA,
             )
-
         yield Result("detect squares: horizontal lines", self.image_debug)
+
         if len(lines_horizontal_final) != 9:
-            yield Result("detect squares: len(lines_horizontal_final) != 9", img, success=False)
+            yield Result("detect squares: len(lines_horizontal_final) != 9", image, success=False)
             return
 
         # take middle line and walk to left and right
@@ -238,11 +250,10 @@ class Detector:
                 4,
                 cv2.LINE_AA,
             )
-
         yield Result("detect squares: vertical lines", self.image_debug)
 
         if len(lines_vertical_final) != 9:
-            yield Result("detect squares: len(lines_vertical_final) != 9", img, success=False)
+            yield Result("detect squares: len(lines_vertical_final) != 9", image, success=False)
             return
 
         square_corners = []
