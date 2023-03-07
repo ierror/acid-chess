@@ -23,18 +23,12 @@ from .utils.timezone import datetime_local
 @dataclass
 class Result:
     message: str
-    debug_image: object = None
     image: object = None
     success: bool = True
     detected_obj: object = None
     timestamp: object = None
 
     def __post_init__(self):
-        # draw message on debug image
-        if self.debug_image is not None:
-            self.debug_image = cv2.resize(self.debug_image, (1280, 720))
-            put_text(self.debug_image, self.message, pos=(10, 10))
-
         self.timestamp = datetime_local()
 
 
@@ -42,12 +36,21 @@ class Detector:
     image = None
     image_size = (BoardModelSetup.image_size[0] * 4, BoardModelSetup.image_size[1] * 4)
 
+    def __init__(self, debug_images_buffer):
+        self.debug_images_buffer = debug_images_buffer
+
     def prepare_image(self, image):
         height, width, *_ = image.shape
         if width == self.image_size[0] and height == self.image_size[1]:
             # image already in the right shape
             return image
         return resize_and_pad(image, self.image_size)
+
+    def report_progress(self, message, debug_image):
+        # draw message on debug image
+        debug_image = cv2.resize(debug_image, (1280, 720))
+        put_text(debug_image, message, pos=(10, 10))
+        self.debug_images_buffer.append(debug_image)
 
     @torch.no_grad()
     def detect_board_corners(self, image):
@@ -58,11 +61,11 @@ class Detector:
         image_detector = self.image.copy()
         image_detector = cv2.resize(image_detector, BoardModelSetup.image_size)
         image_detector = cv2.cvtColor(image_detector, cv2.COLOR_BGR2RGB)
-        yield Result("detect board corners: resized board", image_detector)
+        self.report_progress("detect board corners: resized board", image_detector)
 
         # transform
         image_detector = BoardModelSetup.transforms["val"](image=image_detector)["image"]
-        yield Result("detect board corners: transformed board", np.asarray((to_pil_image(image_detector))))
+        self.report_progress("detect board corners: transformed board", np.asarray((to_pil_image(image_detector))))
 
         # create model and predict mask of board
         model = BoardModelSetup.model
@@ -74,8 +77,7 @@ class Detector:
             mask[mask > 0] = 0
             mask[mask < 0] = 1
         except IndexError:
-            yield Result("detect board corners: masking failed", self.image_debug, success=False)
-            return
+            return Result("detect board corners: masking failed", self.image_debug, success=False)
 
         gray = cv2.cvtColor(mask[0, :, :], cv2.COLOR_GRAY2BGR)
         gray = (255 / gray.max() * (gray - gray.min())).astype(np.uint8)
@@ -85,59 +87,55 @@ class Detector:
         gray = self.prepare_image(gray)
         contours, _hierarchy = cv2.findContours(gray[:, :, 0], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if not contours:
-            yield Result("detect board corners: bord contour extraction failed", self.image_debug, success=False)
-            return
+            return Result("detect board corners: bord contour extraction failed", self.image_debug, success=False)
 
         contour = max(contours, key=cv2.contourArea)
         contour_len = cv2.arcLength(contour, True)
         board_edges = cv2.approxPolyDP(contour, 0.05 * contour_len, True)
         board_edges = board_edges.reshape(-1, 2)
         if board_edges is None or len(board_edges) != 4:
-            yield Result(
+            return Result(
                 "detect board corners: bord contour extraction failed after approxPolyDP",
                 self.image_debug,
                 success=False,
             )
-            return
 
         # first entry in the list is the top-left,
         # the second entry is the top-right, the third is the
         # bottom-right, and the fourth is the bottom-left
         board_edges = order_points(board_edges)
-        board_edges[0] = (board_edges[0][0] - 20, board_edges[0][1] - 20)
-        board_edges[1] = (board_edges[1][0] + 20, board_edges[1][1] - 20)
-        board_edges[2] = (board_edges[2][0] + 20, board_edges[2][1] + 20)
-        board_edges[3] = (board_edges[3][0] - 20, board_edges[3][1] + 20)
+        board_edges[0] = (board_edges[0][0] - 18, board_edges[0][1] - 18)
+        board_edges[1] = (board_edges[1][0] + 18, board_edges[1][1] - 18)
+        board_edges[2] = (board_edges[2][0] + 18, board_edges[2][1] + 18)
+        board_edges[3] = (board_edges[3][0] - 18, board_edges[3][1] + 18)
 
         for e in board_edges:
             cv2.circle(self.image_debug, (int(e[0]), int(e[1])), 25, (255, 0, 255), -1)
-        yield Result("detect board corners: detected edges", self.image_debug)
+        self.report_progress("detect board corners: detected edges", self.image_debug)
 
         try:
             warped = four_point_transform(self.image, board_edges)
             self.image_debug = warped.copy()
-            yield Result("detect board corners: img warped", self.image_debug)
+            self.report_progress("detect board corners: img warped", self.image_debug)
         except ValueError:
-            yield Result("detect board corners: four_point_transform failed", self.image_debug, success=False)
-            return
+            return Result("detect board corners: four_point_transform failed", self.image_debug, success=False)
 
-        yield Result("detect board corners: board warped", image=warped, detected_obj=board_edges)
+        return Result("detect board corners: board warped", image=warped, detected_obj=board_edges)
 
     def detect_squares(self, warped, hough_lines_threshold=90):
         if warped is None or not warped.any():
-            yield Result("detect squares: warped can't be empty", warped, success=False)
-            return
+            return Result("detect squares: warped can't be empty", warped, success=False)
 
         image_h, image_w = warped.shape[0:2]
 
         image = cv2.cvtColor(warped, cv2.COLOR_BGR2GRAY)
-        yield Result("detect squares: img grayed", image)
+        self.report_progress("detect squares: img grayed", image)
 
         image = cv2.medianBlur(image, 17)
-        yield Result("detect squares: blurred", image)
+        self.report_progress("detect squares: blurred", image)
 
         image = auto_canny(image)
-        yield Result("detect squares: auto canny", image)
+        self.report_progress("detect squares: auto canny", image)
 
         lines = cv2.HoughLinesP(
             image,
@@ -148,8 +146,7 @@ class Detector:
             maxLineGap=max(image_w, image_h),
         )
         if lines is None or len(lines) < 18:
-            yield Result(f"detect squares: len(lines) < 18", image, success=False)
-            return
+            return Result(f"detect squares: len(lines) < 18", image, success=False)
 
         lines_horizontal = []
         lines_vertical = []
@@ -162,8 +159,7 @@ class Detector:
                 lines_vertical.append(line)
 
         if not lines_horizontal or not lines_vertical:
-            yield Result("detect squares: no v or h lines", image, success=False)
-            return
+            return Result("detect squares: no v or h lines", image, success=False)
 
         # sort lines
         lines_horizontal.sort(key=lambda l: l.p1.y + l.p2.y)
@@ -218,11 +214,10 @@ class Detector:
                 4,
                 cv2.LINE_AA,
             )
-        yield Result("detect squares: horizontal lines", self.image_debug)
+        self.report_progress("detect squares: horizontal lines", self.image_debug)
 
         if len(lines_horizontal_final) != 9:
-            yield Result("detect squares: len(lines_horizontal_final) != 9", image, success=False)
-            return
+            return Result("detect squares: len(lines_horizontal_final) != 9", image, success=False)
 
         # take middle line and walk to left and right
         middle_line_index = len(lines_vertical) // 2
@@ -250,11 +245,10 @@ class Detector:
                 4,
                 cv2.LINE_AA,
             )
-        yield Result("detect squares: vertical lines", self.image_debug)
+        self.report_progress("detect squares: vertical lines", self.image_debug)
 
         if len(lines_vertical_final) != 9:
-            yield Result("detect squares: len(lines_vertical_final) != 9", image, success=False)
-            return
+            return Result("detect squares: len(lines_vertical_final) != 9", image, success=False)
 
         square_corners = []
         for h_line in lines_horizontal_final:
@@ -280,15 +274,14 @@ class Detector:
         for sc in square_corners:
             cv2.circle(self.image_debug, (int(sc.x), int(sc.y)), 5, (0, 0, 255), -1)
 
-        yield Result("detect squares: horizontal lines: squares corners", self.image_debug)
+        self.report_progress("detect squares: horizontal lines: squares corners", self.image_debug)
 
         if len(square_corners) != 81:
-            yield Result(
+            return Result(
                 f"detect squares: squares not detected, len(square_corners) != 81 ({len(square_corners)})",
                 self.image_debug,
                 success=False,
             )
-            return
 
         # sort square coords from top to bottom, followed by left to right
         square_coords = [[] for _ in range(0, 9)]
@@ -305,7 +298,7 @@ class Detector:
             if len(square_coords[row_index]) == 9:
                 square_coords[row_index].sort(key=lambda p: p.x)
 
-        yield Result(
+        return Result(
             f"detect squares: squares detected, returning extracted square coordinates",
             self.image_debug,
             detected_obj=square_coords,

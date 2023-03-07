@@ -49,7 +49,7 @@ UI_MAPPINGS = {
 class MainWindow(QMainWindow):
     ui = None
     camera_capture = None
-    debug_images_detector = []
+    debug_images_buffer = []
     rendered_image = None
     frame_num = 0
     detector_result = None
@@ -66,7 +66,7 @@ class MainWindow(QMainWindow):
     _camera = None
     _camera_switch_mutex = Lock()
 
-    board_detector = Detector()
+    board_detector = Detector(debug_images_buffer)
     settings = Settings()
     logger = Logger()
     board = Board()
@@ -341,7 +341,7 @@ class MainWindow(QMainWindow):
         if self.game_state in (GameState.NULL, GameState.PAUSED, GameState.FINISHED):
             self.game.enable_disc_flush()
             # clear to start with fresh debug images
-            self.debug_images_detector.clear()
+            self.debug_images_buffer.clear()
             self.game_state = GameState.RUNNING
             self.log("game started")
         elif self.game_state == GameState.RUNNING:
@@ -352,7 +352,7 @@ class MainWindow(QMainWindow):
             BoardDetectorState.RUNNING_CORNER_DETECTION,
             BoardDetectorState.RUNNING_SQUARE_DETECTION,
         ]:
-            self.debug_images_detector = []
+            self.debug_images_buffer = []
             self.board_detector_state = BoardDetectorState.NULL
         else:
             self.board_detector_state = BoardDetectorState.RUNNING_CORNER_DETECTION
@@ -473,7 +473,7 @@ class MainWindow(QMainWindow):
     @Slot()
     def update_ui_detector(self):
         try:
-            image = self.debug_images_detector.pop(0)
+            image = self.debug_images_buffer.pop(0)
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             image = qimage2ndarray.array2qimage(image)
             pixmap = QPixmap(image)
@@ -538,55 +538,51 @@ class MainWindow(QMainWindow):
 
             self.log(f"Frame nr. {self.frame_num}", stdout_only=True)
             if self.board_detector_state == BoardDetectorState.NULL:
-                self.debug_images_detector.append(frame)
+                self.debug_images_buffer.append(frame)
                 sleep(0.1)
                 continue
 
             # detect board corners
-            while self.board_detector_state == BoardDetectorState.RUNNING_CORNER_DETECTION:
+            if self.board_detector_state == BoardDetectorState.RUNNING_CORNER_DETECTION:
                 self.labels["labelStatus"] = "Board corner detection"
-                for result in self.board_detector.detect_board_corners(frame):
-                    self.log(result.message, result.timestamp)
-                    board_edges = result.detected_obj
-                    if board_edges is not None and board_edges.any():
-                        # board detected!
-                        board_warped = result.image
-                        self.board_detector_state = BoardDetectorState.RUNNING_SQUARE_DETECTION
-                    else:
-                        # not detected
-                        if result.debug_image is not None:
-                            self.debug_images_detector.append(copy(result.debug_image))
                 if self.close_requested:
                     break
-                # edges not detected => try on next round
-                break
+
+                result = self.board_detector.detect_board_corners(frame)
+                if result.success:
+                    # board detected!
+                    board_edges = result.detected_obj
+                    board_warped = result.image
+                    self.board_detector_state = BoardDetectorState.RUNNING_SQUARE_DETECTION
+                    self.log("detect corners: success")
+                else:
+                    self.log("detect corners: failed, next try...")
 
             # detect squares
+            tries = 0
             while self.board_detector_state == BoardDetectorState.RUNNING_SQUARE_DETECTION:
                 self.labels["labelStatus"] = "Square detection"
-
-                for result in self.board_detector.detect_squares(board_warped):
-                    self.log(result.message, result.timestamp)
-
-                    if not result.success:
-                        self.log("detect_squares: failed, next try...")
-                        board_edges = None
-                        break
-
-                    squares_coords = result.detected_obj
-                    if squares_coords is not None:
-                        self.board_detector_state = BoardDetectorState.DETECTED
-
-                    if result.debug_image is not None:
-                        self.debug_images_detector.append(copy(result.debug_image))
-
-                if board_edges is None:
-                    self.board_detector_state = BoardDetectorState.RUNNING_CORNER_DETECTION
-                    break
                 if self.close_requested:
                     break
 
-            if not self.board_detector_state == BoardDetectorState.DETECTED:
+                result = self.board_detector.detect_squares(board_warped)
+                if result.success:
+                    # squares detected!
+                    squares_coords = result.detected_obj
+                    self.board_detector_state = BoardDetectorState.DETECTED
+                    self.log("detect squares: success")
+                    break
+                else:
+                    self.log("detect squares: failed, next try...")
+
+                if tries == 5:
+                    # back to corner detection after 5 tries
+                    self.board_detector_state = BoardDetectorState.RUNNING_CORNER_DETECTION
+                    break
+
+                tries += 1
+
+            if self.board_detector_state != BoardDetectorState.DETECTED:
                 continue
 
             # board detected!
@@ -636,7 +632,7 @@ class MainWindow(QMainWindow):
                         (255, 255, 255),
                         2,
                     )
-            self.debug_images_detector.append(image)
+            self.debug_images_buffer.append(image)
 
             # engine move
             if self.board.turn == self.engine_color and engine_run_todo:
