@@ -1,16 +1,16 @@
 |
 
-.. image:: docs/_static/logo/dark.png#gh-dark-mode-only
-    :width: 225
-    :class: only-dark
-    :align: center
-    :alt: Logo
+.. raw:: html
 
-.. image:: docs/_static/logo/light.png#gh-light-mode-only
-    :width: 225
-    :class: only-light
-    :align: center
-    :alt: Logo
+    <p align="center">
+        <img src="docs/_static/logo/dark.png#gh-dark-mode-only" class="only-dark" align="center" width="25%" alt="Logo">
+    </p>
+
+.. raw:: html
+
+    <p align="center">
+        <img src="docs/_static/logo/light.png#gh-light-mode-only" class="only-light" align="center" width="25%" alt="Logo">
+    </p>
 
 |
 |
@@ -23,7 +23,8 @@
     :target: https://discord.com/invite/wdMdBr6jxs
 
 .. image:: https://img.shields.io/github/license/ierror/acid-chess?style=flat-square
-   :alt: GitHub
+    :alt: GitHub
+    :target: https://github.com/ierror/acid-chess/blob/main/LICENSE
 
 |
 
@@ -35,7 +36,7 @@ contour of the board is recognized, and the positions of the individual pieces c
 were trained for the board and squares recognition.
 
 .. image:: docs/_static/photos/over-the-board.jpg
-    :width: 600
+    :width: 80%
     :alt: How it works - over the board
 
 |
@@ -51,7 +52,7 @@ a PGN is generated, which you can load later in the analysis board at Lichess, o
 - PGN exports
 
 .. image:: docs/_static/photos/gui.jpg
-  :width: 600
+  :width: 80%
   :alt: How it works - GUI
 
 |
@@ -72,13 +73,15 @@ We have tested ACID Chess with four different boards and were able to complete g
 will be problems on unknown boards, but every tester makes ACID Chess better!
 
 Regardless of the chosen installation method: ACID Chess saves images of data that cannot be classified sufficiently.
-Please provide us with this data. Create an `issue <https://github.com/ierror/acid-chess/issues/new>`_ in github and upload a ZIP file as an attachment. *<3*
+Please provide us with this data. Create an `issue <https://github.com/ierror/acid-chess/issues/new>`_ and upload a ZIP
+file as an attachment. *<3*
 
 There are two ways to install ACID Chess.
 
 1. as binary: for users who want to try ACID Chess and don't want to deal with installing Python etc.
 2. check out the project via git and install the dependencies manually for people who want to develop on ACID Chess themselves.
 
+|
 
 Contact
 =======
