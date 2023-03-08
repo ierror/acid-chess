@@ -7,7 +7,7 @@ from acid.gui.qt.settings import QTSettingsSyncedDataclassMixin
 @dataclass
 class Settings(QTSettingsSyncedDataclassMixin):
     save_games_dir: Path = None
-    collect_training_data: bool = False
+    collect_training_data: bool = True
     collect_training_data_dir: Path = None
     collect_training_data_threshold_perc: int = 99
     visual_debug_delay: bool = False

@@ -9,9 +9,9 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str((Path(__file__).parent / ".." / "src")))
+sys.path.insert(0, str((Path(__file__).parent / "..")))
 
-from acid import PROGRAM_NAME, PROGRAM_VERSION  # isort:skip
+from acid.conf import PROGRAM_NAME, PROGRAM_VERSION  # isort:skip
 
 project = PROGRAM_NAME
 copyright = "2023, Bernhard Janetzki"
@@ -30,15 +30,34 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = "alabaster"
+html_theme = "pydata_sphinx_theme"
 html_static_path = ["_static"]
+html_favicon = "_static/icon.png"
+html_logo = "_static/icon.png"
+
+html_context = {"default_mode": "dark"}
 
 html_theme_options = {
-    "github_user": "ierror",
-    "github_repo": "acid-chess",
-    "fixed_sidebar": True,
-    "github_banner": False,
-    "github_button": True,
-    "code_font_family": 'SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",Courier,monospace',
-    "code_font_size": "12px",
+    "navbar_start": ["navbar-logo"],
+    "navbar_center": ["navbar-nav"],
+    "navbar_end": ["theme-switcher", "navbar-icon-links"],
+    "navbar_persistent": ["search-button"],
+    "navbar_align": "left",
+    "logo": {
+        "alt_text": "ACID Chess logo",
+        "text": "ACID Chess",
+    },
+    "icon_links": [
+        {
+            "name": "GitHub",
+            "url": "https://github.com/ierror/acid-chess",
+            "icon": "fa-brands fa-square-github",
+            "type": "fontawesome",
+        },
+        {
+            "name": "Mastodon",
+            "url": "https://chaos.social/@boerni",
+            "icon": "fa-brands fa-mastodon",
+        },
+    ],
 }
