@@ -4,12 +4,23 @@ ACID Chess
 
 *The Chess Computer for nerds, by nerds.*
 
-**WIP: More documentation will follow in a few days**
+.. image:: /docs/_static/logo/logo.png
+  :width: 250
+  :alt: Logo
 
-![ACID Chess Logo](/docs/_static/logo/logo.png "Logo")
-![How it works - over the board](/docs/_static/photos/over-the-board.jpg "Game over the board")
-![How it works - GUI](/docs/_static/photos/gui.jpg "GUI Screenshot")
 
-## Contact
+WIP: More documentation will follow in a few day
+================================================
+
+.. image:: /docs/_static/photos/over-the-board.jpg
+  :width: 600
+  :alt: How it works - over the board
+
+.. image:: /docs/_static/photos/gui.jpg
+  :width: 600
+  :alt: How it works - GUI
+
+Contact
+=======
 
 Follow me on mastodon [@boerni@chaos.social](https://chaos.social/@boerni)
