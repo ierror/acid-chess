@@ -18,11 +18,10 @@ import qimage2ndarray
 from cairosvg import svg2png
 from gtts import gTTS
 from imutils.perspective import four_point_transform
-from PIL import Image, ImageOps
+from PIL import Image
 from PIL.ImageQt import ImageQt
 from playsound import playsound
-from PySide6 import QtCore
-from PySide6.QtCore import QBuffer, QFile, QStandardPaths, Qt, QThreadPool, QTimer, Slot
+from PySide6.QtCore import QFile, QStandardPaths, Qt, QThreadPool, QTimer, Slot
 from PySide6.QtGui import QFont, QFontDatabase, QIcon, QImage, QKeySequence, QPixmap, QShortcut
 from PySide6.QtMultimedia import QCamera, QImageCapture, QMediaCaptureSession, QMediaDevices
 from PySide6.QtUiTools import QUiLoader
