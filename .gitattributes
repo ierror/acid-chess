@@ -1,0 +1,10 @@
+*.jpg filter=lfs diff=lfs merge=lfs -text
+*.jpeg filter=lfs diff=lfs merge=lfs -text
+*.ckpt filter=lfs diff=lfs merge=lfs -text
+*.pb filter=lfs diff=lfs merge=lfs -text
+*.ipynb filter=lfs diff=lfs merge=lfs -text
+notebooks/board_segemenation_testing.ipynb filter=lfs diff=lfs merge=lfs -text
+notebooks/board_segemenation_training.ipynb filter=lfs diff=lfs merge=lfs -text
+notebooks/square_classifier_testing.ipynb filter=lfs diff=lfs merge=lfs -text
+notebooks/square_classifier_training.ipynb filter=lfs diff=lfs merge=lfs -text
+notebooks/board_google_images_dl.ipynb filter=lfs diff=lfs merge=lfs -text
