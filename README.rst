@@ -74,7 +74,7 @@ Planned Features
 Technology
 ==========
 
-- Python as a programming language
+- Python as programming language
 - Qt (PySide6) as toolkit for the GUI (with own extension for reactive bindings)
 - PyTorch (Lightning ) for the development of AI models
 
