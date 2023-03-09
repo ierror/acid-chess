@@ -3,13 +3,13 @@
 .. raw:: html
 
     <p align="center">
-        <img src="_static/logo/dark.png#gh-dark-mode-only" class="only-dark" align="center" width="25%" alt="Logo">
+        <img src="_static/images/logo/dark.png#gh-dark-mode-only" class="only-dark" align="center" width="25%" alt="Logo">
     </p>
 
 .. raw:: html
 
     <p align="center">
-        <img src="_static/logo/light.png#gh-light-mode-only" class="only-light" align="center" width="25%" alt="Logo">
+        <img src="_static/images/logo/light.png#gh-light-mode-only" class="only-light" align="center" width="25%" alt="Logo">
     </p>
 
 |
@@ -37,7 +37,7 @@ Picture by Picture
 ==================
 
 ACID Chess is a chess computer written in Python, which can be used with any? board. By filming the board, the
-contour of the board is recognized, and the positions of the individual pieces can be determined. Two neural networks
+contour of the board is recognized, and the positions of the individual pieces can be determined. Two :doc:`/dev/neural_networks`
 were trained for the board and squares recognition.
 
 .. image:: _static/images/over-the-board.jpg
@@ -95,6 +95,8 @@ There are two ways to install ACID Chess.
 1. as binary: for users who want to try ACID Chess and don't want to deal with installing Python etc.
 2. check out the project via git and install the dependencies manually for people who want to develop on ACID Chess themselves.
 
+Modern hardware, preferably NVIDIA GPU or Mac M[0-9]+ is recommended!
+
 |
 
 Known bugs and limitations
@@ -116,8 +118,21 @@ Sourcecode
 
 |
 
+Contributing
+============
+
+Contributions are always welcome. Please discuss major changes via issue first before submitting a pull request.
+
+|
+
 Contact
 =======
 
 - Mastodon `@boerni@chaos.social <https://chaos.social/@boerni>`_
 - `Discord <https://discord.com/invite/wdMdBr6jxs>`_
+
+
+.. toctree::
+    :maxdepth: 3
+
+    dev/neural_networks

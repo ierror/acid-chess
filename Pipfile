@@ -12,6 +12,8 @@ playsound = "*"
 pyside6 = "*"
 pytorch-lightning = "*"
 torchdata = "*"
+pycocotools = "*"
+labelme2coco = {editable = true, ref = "4ed43e6b2e89331a295157eb910dd7a3b2c4f64a", git = "https://github.com/ierror/labelme2coco.git"}
 lightning = "*"
 torchvision = "*"
 albumentations = "*"
@@ -22,18 +24,15 @@ pyqtdarktheme = "*"
 qimage2ndarray = "*"
 
 [dev-packages]
-pycocotools = "*"
 flake8-pyproject = "*"
 isort = "*"
 black = {extras = ["jupyter"], version = "*"}
-labelme2coco = {editable = true, ref = "4ed43e6b2e89331a295157eb910dd7a3b2c4f64a", git = "https://github.com/ierror/labelme2coco.git"}
 jupyterlab = "*"
 imagehash = "*"
 google-api-python-client = "*"
 ipyplot = "*"
 wandb = "*"
 ipywidgets = "*"
-sphinx = "*"
 pydata-sphinx-theme = "*"
 
 [requires]

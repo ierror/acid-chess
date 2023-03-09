@@ -32,17 +32,17 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 html_theme = "pydata_sphinx_theme"
 html_static_path = ["_static"]
-html_favicon = "_static/icon.png"
-html_logo = "_static/icon.png"
+html_favicon = "_static/images/icon.png"
+html_logo = "_static/images/icon.png"
 
 html_context = {"default_mode": "dark"}
 
 html_theme_options = {
+    "show_toc_level": 2,
     "navbar_start": ["navbar-logo"],
     "navbar_center": ["navbar-nav"],
     "navbar_end": ["theme-switcher", "navbar-icon-links"],
     "navbar_persistent": ["search-button"],
-    "navbar_align": "left",
     "logo": {
         "alt_text": "ACID Chess logo",
         "text": "ACID Chess",
