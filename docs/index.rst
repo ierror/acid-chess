@@ -17,6 +17,8 @@
 
 *The Chess Computer for nerds, by nerds.*
 
+|
+
 .. image:: https://img.shields.io/readthedocs/acid-chess/latest?style=flat-square
     :alt: Documentation Status
     :target: http://acid-chess.rtfd.io/
@@ -38,7 +40,7 @@ ACID Chess is a chess computer written in Python, which can be used with any? bo
 contour of the board is recognized, and the positions of the individual pieces can be determined. Two neural networks
 were trained for the board and squares recognition.
 
-.. image:: _static/photos/over-the-board.jpg
+.. image:: _static/images/over-the-board.jpg
     :width: 80%
     :alt: How it works - over the board
 
@@ -54,7 +56,7 @@ a PGN is generated, which you can load later in the analysis board at Lichess, o
 - Use polyglot opening books
 - PGN exports
 
-.. image:: _static/photos/gui.jpg
+.. image:: _static/images/gui.jpg
   :width: 80%
   :alt: How it works - GUI
 
