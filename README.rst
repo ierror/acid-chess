@@ -72,14 +72,14 @@ Planned Features
 
 - Clock
 - Play on Lichess
-- ... see Issues for details
+- ... see `issues <https://github.com/ierror/acid-chess/issues/new>`_ for details
 
 |
 
 Technology
 **********
 
-- Python as programming language
+- Python as a programming language
 - Qt (PySide6) as toolkit for the GUI (with own extension for reactive bindings)
 - PyTorch (Lightning ) for the development of AI models
 
@@ -127,6 +127,17 @@ Contributing
 ************
 
 Contributions are always welcome. Please discuss major changes via issue first before submitting a pull request.
+
+|
+
+Data Attribution
+****************
+
+`Google Programmable Search Engine <https://developers.google.com/custom-search>`_ Rest API was used to search for
+Creative Commons licensed images of chess boards used for training the neural network models.
+
+- `Notebook <https://github.com/ierror/acid-chess/blob/main/notebooks/board_google_images_dl.ipynb>`_ for collecting the data
+- `CSV <https://github.com/ierror/acid-chess/blob/main/data/training/boards/attribution.csv>`_ to document the Attribution
 
 |
 
