@@ -1,4 +1,10 @@
-|
+.. toctree::
+    :hidden:
+    :maxdepth: 3
+    :caption: Contents:
+
+    Home <self>
+    dev/neural_networks
 
 .. raw:: html
 
@@ -17,8 +23,6 @@
 
 *The Chess Computer for nerds, by nerds.*
 
-|
-
 .. image:: https://img.shields.io/readthedocs/acid-chess/latest?style=flat-square
     :alt: Documentation Status
     :target: http://acid-chess.rtfd.io/
@@ -32,12 +36,13 @@
     :target: https://github.com/ierror/acid-chess/blob/main/LICENSE
 
 |
+|
 
 Picture by Picture
-==================
+******************
 
 ACID Chess is a chess computer written in Python, which can be used with any? board. By filming the board, the
-contour of the board is recognized, and the positions of the individual pieces can be determined. Two :doc:`/dev/neural_networks`
+contour of the board is recognized, and the positions of the individual pieces can be determined. Two `Neural Networks  </dev/neural_networks.html>`_
 were trained for the board and squares recognition.
 
 .. image:: docs/_static/images/over-the-board.jpg
@@ -47,7 +52,7 @@ were trained for the board and squares recognition.
 |
 
 Features
-========
+********
 
 You can play against an engine, Stockfish or Maia are available, or play a game against another human. In both variants,
 a PGN is generated, which you can load later in the analysis board at Lichess, or so, for analysis.
@@ -63,7 +68,7 @@ a PGN is generated, which you can load later in the analysis board at Lichess, o
 |
 
 Planned Features
-================
+****************
 
 - Clock
 - Play on Lichess
@@ -72,7 +77,7 @@ Planned Features
 |
 
 Technology
-==========
+**********
 
 - Python as a programming language
 - Qt (PySide6) as toolkit for the GUI (with own extension for reactive bindings)
@@ -81,7 +86,7 @@ Technology
 |
 
 I want to play against ACID!
-============================
+****************************
 
 We have tested ACID Chess with four different boards and were able to complete games without significant flaws. There
 will be problems on unknown boards, but every tester makes ACID Chess better!
@@ -100,39 +105,33 @@ Modern hardware, preferably NVIDIA GPU or Mac M[0-9]+ is recommended!
 |
 
 Known bugs and limitations
-==========================
+**************************
 - after switching cameras you will see an "Image capture failed: timed out waiting for a preview frame" error in the logs. Workaroud: Select camara you want to use and restart the app
 
 |
 
 Resources
-=========
+*********
 
 Documentation
-**************
-`http://acid-chess.rtfd.io/ <http://acid-chess.rtfd.io/>`_
+-------------
+`https://acid-chess.readthedocs.io/ <https://acid-chess.readthedocs.io/>`_
 
 Sourcecode
-**********
+----------
 `https://github.com/ierror/acid-chess <https://github.com/ierror/acid-chess>`_
 
 |
 
 Contributing
-============
+************
 
 Contributions are always welcome. Please discuss major changes via issue first before submitting a pull request.
 
 |
 
 Contact
-=======
+*******
 
 - Mastodon `@boerni@chaos.social <https://chaos.social/@boerni>`_
 - `Discord <https://discord.com/invite/wdMdBr6jxs>`_
-
-
-.. toctree::
-    :maxdepth: 3
-
-    dev/neural_networks

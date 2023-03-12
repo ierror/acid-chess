@@ -20,7 +20,6 @@ albumentations = "*"
 pyobjc = {version = "*", sys_platform = "== 'darwin'"}
 python-dateutil = "*"
 imutils = "*"
-pyqtdarktheme = "*"
 qimage2ndarray = "*"
 
 [dev-packages]
@@ -33,6 +32,5 @@ google-api-python-client = "*"
 ipyplot = "*"
 wandb = "*"
 ipywidgets = "*"
-pydata-sphinx-theme = "*"
 
 [requires]

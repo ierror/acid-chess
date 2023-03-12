@@ -4,6 +4,7 @@ icons:
 	cd acid/gui/res/; pyside6-rcc icons.qrc -o icons.py
 
 docs:
+	pip install -r docs/requirements.txt
 	cd docs && make clean && make html
 	cp docs/index.rst README.rst
 	sed -i "s/.. image:: _static\//.. image:: docs\/_static\//g" README.rst
