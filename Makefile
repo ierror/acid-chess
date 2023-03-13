@@ -7,5 +7,6 @@ docs:
 	pip install -r docs/requirements.txt
 	cd docs && make clean && make html
 	cp docs/index.md README
-	sed -i "s/.. image:: _static\//.. image:: docs\/_static\//g" README
+	perl -0777pi -e 's/^```{toctree}\s?(.*?\n)*```//gm' README
+	perl -pi -e "s/]\(_static\//(docs\/_static\//g" README
 	sed -i 's/<img src="_static\//<img src="docs\/_static\//g' README
