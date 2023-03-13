@@ -1,4 +1,4 @@
-# ACID Chess
+
 
 <p align="center">
     <img src="docs/_static/images/logo/dark.png#gh-dark-mode-only" class="only-dark" align="center" width="25%" alt="Logo">
