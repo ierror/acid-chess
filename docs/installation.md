@@ -16,7 +16,12 @@ conda install cairo
 
 For macOS users
 ```bash
-brew install conda
+brew install cairo
+```
+
+For Debian / Ubuntu users
+```bash
+apt install libcairo
 ```
 
 ## Installation from PyPI
