@@ -24,7 +24,21 @@ For Debian / Ubuntu users
 apt install libcairo
 ```
 
-## Installation from PyPI
+# Known bugs and limitations
+- after switching cameras you will see an "Image capture failed: timed out waiting for a preview frame" error in the logs. Workaroud: Select camara you want to use and restart the app
+- Linux and Windows aarch64 are not supported at the moment. [PySide6 needs support first]([https://bugreports.qt.io/browse/PYSIDE-1595])
+
+## Installation via PyPI
+
+```!!! ```
+
+Installation via PyPI is not yet possible!
+
+[Waiting for PyPI to increase the file upload limit](https://github.com/pypi/support/issues/2692).
+
+Use Installation via git for now
+
+```!!!```
 
 For users who only want to use ACID Chess rather than develop for it.
 
@@ -44,10 +58,10 @@ pip3 install acid-chess  # or pip install acid-chess
 ### Run acid-chess
 
 ```bash
-acid
+acid-chess
 ```
 
-## Installation from git
+## Installation via git
 
 For users who want to develop for ACID Chess.
 

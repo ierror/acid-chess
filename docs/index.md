@@ -80,10 +80,6 @@ There are two ways to install ACID Chess:
 1. [PyPI](https://acid-chess.readthedocs.io/en/latest/installation.html#installation-from-pypi) - For users who only want to use ACID Chess rather than develop for it
 2. [git](https://acid-chess.readthedocs.io/en/latest/installation.html#installation-from-git) For users who want to develop for ACID Chess
 
-# Known bugs and limitations
-- after switching cameras you will see an "Image capture failed: timed out waiting for a preview frame" error in the logs. Workaroud: Select camara you want to use and restart the app
-- Linux and Windows aarch64 is not supported atm. [PySide6 needs support first]([https://bugreports.qt.io/browse/PYSIDE-1595])
-
 # Resources
 
 ## Documentation
