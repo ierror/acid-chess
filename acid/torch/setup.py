@@ -6,7 +6,7 @@ from pytorch_lightning import Trainer
 from torchvision import transforms
 
 from .. import conf
-from ..contextmanagers import set_posix_windows
+from ..contextmanagers import posix_path_compatibility
 from ..decorators import classproperty
 from .lightning_modules import BoardSegmentationModule, SquareClassifierModule
 
@@ -32,7 +32,7 @@ class BoardModelSetup:
     @classproperty
     def model(cls):
         if not cls._model:
-            with set_posix_windows():
+            with posix_path_compatibility():
                 cls._model = BoardSegmentationModule.load_from_checkpoint(cls.model_path)
         return cls._model
 
@@ -74,7 +74,7 @@ class SquareModelSetup:
     @classproperty
     def model(cls):
         if not cls._model:
-            with set_posix_windows():
+            with posix_path_compatibility():
                 cls._model = SquareClassifierModule.load_from_checkpoint(cls.model_path)
         return cls._model
 
