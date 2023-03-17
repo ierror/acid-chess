@@ -1,0 +1,3 @@
+include VERSION
+include data/engines/*/*
+include data/models/*.ckpt

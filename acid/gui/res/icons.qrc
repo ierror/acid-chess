@@ -1,0 +1,14 @@
+<RCC>
+  <qresource>
+    <file>icon.png</file>
+    <file>delete-circle.svg</file>
+    <file>sun-light.svg</file>
+    <file>play.svg</file>
+    <file>pause.svg</file>
+    <file>save-action-floppy.svg</file>
+    <file>sound-high.svg</file>
+    <file>sound-off.svg</file>
+    <file>undo-action.svg</file>
+    <file>frame-alt-empty.svg</file>
+  </qresource>
+</RCC>

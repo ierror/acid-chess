@@ -1,0 +1,39 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+opencv-python = "*"
+chess = "*"
+cairosvg = "*"
+gtts = "*"
+playsound = "*"
+pyside6 = "*"
+pytorch-lightning = "==1.9.3"
+torchdata = "*"
+pycocotools = "*"
+labelme2coco = {editable = true, ref = "4ed43e6b2e89331a295157eb910dd7a3b2c4f64a", git = "https://github.com/ierror/labelme2coco.git"}
+torchvision = "*"
+albumentations = "*"
+pyobjc-core = {version = "*", sys_platform = "== 'darwin'"}
+pyobjc-framework-Cocoa = {version = "*", sys_platform = "== 'darwin'"}
+python-dateutil = "*"
+imutils = "*"
+qimage2ndarray = "*"
+pyqtdarktheme = "*"
+
+[dev-packages]
+flake8-pyproject = "*"
+isort = "*"
+black = {extras = ["jupyter"], version = "*"}
+jupyterlab = "*"
+imagehash = "*"
+google-api-python-client = "*"
+ipyplot = "*"
+wandb = "*"
+ipywidgets = "*"
+sphinx = "*"
+pydata-sphinx-theme = "*"
+
+[requires]

@@ -1,0 +1,34 @@
+{
+  "version": "5.1.1",
+  "flags": {},
+  "shapes": [
+    {
+      "label": "corners",
+      "points": [
+        [
+          362.89915966386553,
+          272.68907563025215
+        ],
+        [
+          364.15966386554624,
+          26.470588235294116
+        ],
+        [
+          117.10084033613444,
+          27.3109243697479
+        ],
+        [
+          116.68067226890754,
+          273.10924369747903
+        ]
+      ],
+      "group_id": null,
+      "shape_type": "polygon",
+      "flags": {}
+    }
+  ],
+  "imagePath": "22fb300e21fec59998ace8bdaaeac267c0443ed3.jpeg",
+  "imageData": null,
+  "imageHeight": 300,
+  "imageWidth": 480
+}
