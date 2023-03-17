@@ -28,6 +28,8 @@ apt install libcairo
 
 For users who only want to use ACID Chess rather than develop for it.
 
+see [Prerequisites](#prerequisites)
+
 ### Additional prerequisites
 
 - [pip](https://pip.pypa.io/en/stable/installation/)
@@ -48,6 +50,8 @@ acid
 ## Installation from git
 
 For users who want to develop for ACID Chess.
+
+see [Prerequisites](#prerequisites)
 
 ### Additional prerequisites
 
