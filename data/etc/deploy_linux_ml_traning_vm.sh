@@ -45,11 +45,11 @@ then
   run_command  "sudo apt-get -y install cuda"
 fi
 
-run_command  "cd $PROJECT_ROOT; sudo pipenv requirements --dev | grep -Ev "^pyobjc" | grep -Ev "click" | grep -Ev "^pyside6"  > req.txt"
+run_command  "cd $PROJECT_ROOT; sudo pipenv requirements --dev | grep -Ev "^pyobjc" | grep -Ev "^click" | grep -Ev "^pyside6" | grep -Ev "^playsound"  > req.txt"
 run_command  "sudo pip install --upgrade pip"
 run_command  "cd $PROJECT_ROOT; sudo pip install --use-pep517 --ignore-installed -r req.txt"
-
 
 fg
 
 echo "ssh $SSH_USER@$SSH_HOST -L 127.0.0.1:8001:127.0.0.1:8888"
+echo "run: cd /root/ac/notebooks/; jupyter-lab --allow-root"
