@@ -38,8 +38,8 @@ were trained for the board and squares recognition.
 
 # Current Release 
 
-### 2023-03-17: v.0.1.0
-- initial release
+### 2023-11-23: v.0.2.0
+- added support to play on Lichess
 
 complete [Changelog](https://acid-chess.readthedocs.io/en/latest/changelog.html)
 
