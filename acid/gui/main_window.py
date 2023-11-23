@@ -715,6 +715,8 @@ class MainWindow(QMainWindow):
                 continue
 
             stop_streaming = False
+            opponent_gone = False
+
             for game_data in self.lichess_api.board.stream_game_state(self.lichess_game["gameId"]):
                 print(game_data)
 
@@ -725,6 +727,7 @@ class MainWindow(QMainWindow):
                     break
 
                 game_state = None
+
                 if game_data["type"] == "gameFull":
                     game_state = game_data["state"]
                 elif game_data["type"] == "gameState":
@@ -734,6 +737,14 @@ class MainWindow(QMainWindow):
                         break
                     elif game_data["status"] == "outoftime":
                         Feedback(self, f"Out of time, {game_data['winner']} wins", speak_message=True)
+                        stop_streaming = True
+                        break
+                    elif game_data["status"] == "mate":
+                        Feedback(self, f"Checkmate, {game_data['winner']} wins", speak_message=True)
+                        stop_streaming = True
+                        break
+                    elif game_data["status"] == "stalemate":
+                        Feedback(self, f"Stalemate", speak_message=True)
                         stop_streaming = True
                         break
                     elif game_data["status"] == "resign":
@@ -748,13 +759,19 @@ class MainWindow(QMainWindow):
                     self.update_clock_times(game_state["wtime"], game_state["btime"])
                 elif game_data["type"] == "opponentGone":
                     if game_data["gone"] is True:
-                        Feedback(
-                            self,
-                            f"Opponent gone, you can claim victory in {game_data['claimWinInSeconds']} seconds",
-                            speak_message=True,
-                        )
+                        if opponent_gone is False:
+                            Feedback(
+                                self,
+                                f"Opponent gone, you can claim victory in {game_data['claimWinInSeconds']} seconds",
+                                speak_message=True,
+                            )
+                            opponent_gone = True
                         if game_data["claimWinInSeconds"] == 0:
                             self.lichess_api.board.claim_victory(self.lichess_game["gameId"])
+                            stop_streaming = True
+                            break
+                    else:
+                        opponent_gone = False
 
                 if game_state:
                     if not game_state["moves"]:
@@ -774,18 +791,7 @@ class MainWindow(QMainWindow):
         last_move = None
         validation_count = 0
         validation_count_needed_initial = 4
-        its_opponents_turn = True
         board_image_saved = False
-
-        print(self.opponent)
-        if self.opponent in ["computer_white", "computer_black"]:
-            game_mode = GameMode.COMPUTER
-        elif self.opponent == "lichess":
-            game_mode = GameMode.LICHESS
-        elif self.opponent == "human":
-            game_mode = GameMode.HUMAN
-        else:
-            raise NotImplementedError(f"No idea what game type to choose for opponent={self.opponent}")
 
         while True:
             if self.close_requested:
@@ -814,6 +820,26 @@ class MainWindow(QMainWindow):
                 self.debug_images_buffer.append(frame)
                 sleep(0.1)
                 continue
+
+            if self.opponent in ["computer_white", "computer_black"]:
+                game_mode = GameMode.COMPUTER
+            elif self.opponent == "lichess":
+                game_mode = GameMode.LICHESS
+            elif self.opponent == "human":
+                game_mode = GameMode.HUMAN
+            else:
+                raise NotImplementedError(f"No idea what game type to choose for opponent={self.opponent}")
+
+            if game_mode == GameMode.COMPUTER:
+                if self.board.turn != self.engine_color:
+                    its_opponents_turn = True
+                else:
+                    its_opponents_turn = False
+            elif game_mode == GameMode.LICHESS:
+                if self.board.turn == self.lichess_color:
+                    its_opponents_turn = False
+                else:
+                    its_opponents_turn = True
 
             # detect board corners
             if self.board_detector_state == BoardDetectorState.RUNNING_CORNER_DETECTION:
@@ -1091,17 +1117,6 @@ class MainWindow(QMainWindow):
 
             last_move = None
             validation_count = 0
-
-            if game_mode == GameMode.COMPUTER:
-                if self.board.turn != self.engine_color:
-                    its_opponents_turn = True
-                else:
-                    its_opponents_turn = False
-            elif game_mode == GameMode.LICHESS:
-                if self.board.turn == self.lichess_color:
-                    its_opponents_turn = False
-                else:
-                    its_opponents_turn = True
 
             self.game.update(
                 move_stack=self.board.move_stack, board_fen=self.board.board_fen(), a1_corner=self.board.a1_corner
