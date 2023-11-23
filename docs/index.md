@@ -75,10 +75,7 @@ Regardless of the chosen installation method: ACID Chess saves images of data th
 Please provide us with this data. Create an [issue](https://github.com/ierror/acid-chess/issues/new) and upload a ZIP
 file as an attachment. `<3`
 
-There are two ways to install ACID Chess:
-
-1. [PyPI](https://acid-chess.readthedocs.io/en/latest/installation.html#installation-from-pypi) - For users who only want to use ACID Chess rather than develop for it
-2. [git](https://acid-chess.readthedocs.io/en/latest/installation.html#installation-from-git) For users who want to develop for ACID Chess
+[Installation](https://acid-chess.readthedocs.io/en/latest/installation.html)
 
 # Resources
 
