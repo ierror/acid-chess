@@ -9,7 +9,7 @@ PROGRAM_ID = "acid-chess"
 PROGRAM_NAME = "ACID Chess"
 PROGRAM_VERSION = acid.__version__
 PROGRAM_SITE = "https://github.com/ierror/acid-chess"
-BOT_NAME = "ACID"
+COMPUTER_NAME = "ACID"
 
 # path
 DATA_DIR = PROJECT_ROOT / "data"

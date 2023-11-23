@@ -23,6 +23,9 @@ python-dateutil = "*"
 imutils = "*"
 qimage2ndarray = "*"
 pyqtdarktheme = "*"
+berserk = "*"
+requests-oauthlib = "*"
+pyqt6-webengine = "*"
 
 [dev-packages]
 flake8-pyproject = "*"

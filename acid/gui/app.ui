@@ -131,28 +131,172 @@
       <item>
        <layout class="QVBoxLayout" name="verticalLayout" stretch="1,1">
         <item>
-         <widget class="QLabel" name="labelStatus">
-          <property name="font">
-           <font>
-            <pointsize>72</pointsize>
-            <bold>true</bold>
-            <strikeout>false</strikeout>
-            <kerning>false</kerning>
-           </font>
+         <layout class="QVBoxLayout" name="verticalLayout_9" stretch="0,0,0,2">
+          <property name="sizeConstraint">
+           <enum>QLayout::SetDefaultConstraint</enum>
           </property>
-          <property name="styleSheet">
-           <string notr="true">QLabel { color : #F9F9F9; }</string>
-          </property>
-          <property name="text">
-           <string/>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignCenter</set>
-          </property>
-          <property name="wordWrap">
-           <bool>true</bool>
-          </property>
-         </widget>
+          <item>
+           <spacer name="verticalSpacer_2">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>10</width>
+              <height>40</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout">
+            <item>
+             <spacer name="horizontalSpacer_2">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item>
+             <layout class="QVBoxLayout" name="verticalLayout_10">
+              <item>
+               <widget class="QLabel" name="labelGameplayTimeWhite">
+                <property name="font">
+                 <font>
+                  <family>PT Mono</family>
+                  <pointsize>48</pointsize>
+                  <bold>true</bold>
+                 </font>
+                </property>
+                <property name="text">
+                 <string>00:00</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="labelGameplayPlayerWhite">
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <spacer name="horizontalSpacer_4">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item>
+             <layout class="QVBoxLayout" name="verticalLayout_11">
+              <item>
+               <widget class="QLabel" name="labelGameplayTimeBlack">
+                <property name="font">
+                 <font>
+                  <family>PT Mono</family>
+                  <pointsize>48</pointsize>
+                  <bold>true</bold>
+                 </font>
+                </property>
+                <property name="text">
+                 <string>00:00</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="labelGameplayPlayerBlack">
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <spacer name="horizontalSpacer_3">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <spacer name="verticalSpacer_3">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>25</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QLabel" name="labelStatus">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="font">
+             <font>
+              <pointsize>65</pointsize>
+              <bold>true</bold>
+              <strikeout>false</strikeout>
+              <kerning>false</kerning>
+             </font>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">QLabel { color : #F9F9F9; }</string>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignCenter</set>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
         <item>
          <layout class="QVBoxLayout" name="verticalLayout_7">
@@ -242,7 +386,7 @@
            <x>0</x>
            <y>0</y>
            <width>357</width>
-           <height>748</height>
+           <height>827</height>
           </rect>
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_4">
@@ -293,14 +437,14 @@
                  <widget class="QComboBox" name="comboBoxOpponent">
                   <property name="minimumSize">
                    <size>
-                    <width>133</width>
+                    <width>160</width>
                     <height>0</height>
                    </size>
                   </property>
                  </widget>
                 </item>
                 <item row="1" column="0">
-                 <widget class="QLabel" name="label_2">
+                 <widget class="QLabel" name="labelPlayerWhite">
                   <property name="text">
                    <string>Player white</string>
                   </property>
@@ -310,7 +454,7 @@
                  <widget class="QLineEdit" name="lineEditPlayerWhite">
                   <property name="minimumSize">
                    <size>
-                    <width>133</width>
+                    <width>155</width>
                     <height>0</height>
                    </size>
                   </property>
@@ -323,7 +467,7 @@
                  </widget>
                 </item>
                 <item row="2" column="0">
-                 <widget class="QLabel" name="label_3">
+                 <widget class="QLabel" name="labelPlayerBlack">
                   <property name="text">
                    <string>Player black</string>
                   </property>
@@ -333,7 +477,7 @@
                  <widget class="QLineEdit" name="lineEditPlayerBlack">
                   <property name="minimumSize">
                    <size>
-                    <width>133</width>
+                    <width>155</width>
                     <height>0</height>
                    </size>
                   </property>
@@ -343,7 +487,7 @@
                  </widget>
                 </item>
                 <item row="3" column="0">
-                 <widget class="QLabel" name="label_9">
+                 <widget class="QLabel" name="labelEventName">
                   <property name="text">
                    <string>Event</string>
                   </property>
@@ -353,7 +497,7 @@
                  <widget class="QLineEdit" name="lineEditEventName">
                   <property name="minimumSize">
                    <size>
-                    <width>133</width>
+                    <width>155</width>
                     <height>0</height>
                    </size>
                   </property>
@@ -366,7 +510,7 @@
                  </widget>
                 </item>
                 <item row="5" column="0">
-                 <widget class="QLabel" name="label_5">
+                 <widget class="QLabel" name="labelSaveGamesTo">
                   <property name="text">
                    <string>Save dir</string>
                   </property>
@@ -415,7 +559,7 @@
                 <item row="7" column="0">
                  <widget class="QLabel" name="labelEngine">
                   <property name="text">
-                   <string>Bot Engine</string>
+                   <string>Engine</string>
                   </property>
                  </widget>
                 </item>
@@ -450,7 +594,58 @@
                   </property>
                  </widget>
                 </item>
-                <item row="11" column="0" colspan="2">
+                <item row="10" column="1">
+                 <widget class="QPushButton" name="pushButtonLichessLogin">
+                  <property name="toolTip">
+                   <string/>
+                  </property>
+                  <property name="text">
+                   <string>Lichess Login</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="12" column="1">
+                 <widget class="QComboBox" name="comboBoxLichessColor">
+                  <property name="minimumSize">
+                   <size>
+                    <width>132</width>
+                    <height>0</height>
+                   </size>
+                  </property>
+                 </widget>
+                </item>
+                <item row="13" column="0">
+                 <widget class="QLabel" name="labelLichessTime">
+                  <property name="text">
+                   <string>Time(m)</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="13" column="1">
+                 <widget class="QSpinBox" name="spinBoxLichessTime">
+                  <property name="minimum">
+                   <number>1</number>
+                  </property>
+                  <property name="maximum">
+                   <number>180</number>
+                  </property>
+                 </widget>
+                </item>
+                <item row="14" column="0">
+                 <widget class="QLabel" name="labelLichessIncrement">
+                  <property name="text">
+                   <string>Increment(s)</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="14" column="1">
+                 <widget class="QSpinBox" name="spinBoxLichessIncrement">
+                  <property name="maximum">
+                   <number>180</number>
+                  </property>
+                 </widget>
+                </item>
+                <item row="17" column="0" colspan="2">
                  <widget class="QPlainTextEditFocusSignaled" name="plainTextEditEngineOptions">
                   <property name="tabChangesFocus">
                    <bool>true</bool>
@@ -463,6 +658,53 @@
                   </property>
                   <property name="centerOnScroll">
                    <bool>false</bool>
+                  </property>
+                 </widget>
+                </item>
+                <item row="15" column="0">
+                 <widget class="QLabel" name="labelLichessRated">
+                  <property name="text">
+                   <string>Rated?</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="15" column="1">
+                 <widget class="QCheckBox" name="checkBoxLichessRated">
+                  <property name="text">
+                   <string/>
+                  </property>
+                  <property name="checked">
+                   <bool>true</bool>
+                  </property>
+                 </widget>
+                </item>
+                <item row="12" column="0">
+                 <widget class="QLabel" name="labelLichessColor">
+                  <property name="text">
+                   <string>Color</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="11" column="1">
+                 <widget class="QLabel" name="labelLichessUsernamePasswordHint">
+                  <property name="minimumSize">
+                   <size>
+                    <width>0</width>
+                    <height>50</height>
+                   </size>
+                  </property>
+                  <property name="text">
+                   <string>Your usernaname or password will never be stored on this computer!</string>
+                  </property>
+                  <property name="wordWrap">
+                   <bool>true</bool>
+                  </property>
+                 </widget>
+                </item>
+                <item row="16" column="1">
+                 <widget class="QPushButton" name="pushButtonLichessLogout">
+                  <property name="text">
+                   <string>Logout</string>
                   </property>
                  </widget>
                 </item>
