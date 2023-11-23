@@ -2,10 +2,20 @@ from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from copy import copy
 from dataclasses import dataclass
-from typing import Iterable, Union
+from typing import Iterable, List, Union
 
 from PySide6.QtCore import Slot
-from PySide6.QtWidgets import QCheckBox, QComboBox, QLineEdit, QPlainTextEdit, QPushButton, QSlider, QSpinBox, QWidget
+from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QLabel,
+    QLineEdit,
+    QPlainTextEdit,
+    QPushButton,
+    QSlider,
+    QSpinBox,
+    QWidget,
+)
 
 from .widgets import ButtonOpensFileDialog, QPlainTextEditFocusSignaled
 
@@ -30,6 +40,8 @@ def _connect_ui_elm(ui_elm, callback):
         ui_elm.valueChanged.connect(callback)
     elif isinstance(ui_elm, ButtonOpensFileDialog):
         pass
+    elif isinstance(ui_elm, QLabel):
+        pass
     elif isinstance(ui_elm, QPlainTextEditFocusSignaled):
         ui_elm.editingFinished.connect(callback)
     elif isinstance(ui_elm, QPushButton):
@@ -40,9 +52,9 @@ def _connect_ui_elm(ui_elm, callback):
 
 @dataclass
 class ReactiveBase(metaclass=ABCMeta):
+    ui_elm: QWidget
     obj: object
     attr: str
-    ui_elm: QWidget
 
     def __post_init__(self):
         if not hasattr(self.obj, "qtr_instances"):
@@ -101,6 +113,8 @@ class ReactiveAttrSynced(ReactiveBase):
             self.ui_elm.setChecked(value)
         elif isinstance(self.ui_elm, QLineEdit):
             self.ui_elm.setText(value)
+        elif isinstance(self.ui_elm, QLabel):
+            self.ui_elm.setText(value)
         elif isinstance(self.ui_elm, QComboBox):
             if value is not None:
                 self.ui_elm.setCurrentIndex(value)
@@ -119,22 +133,43 @@ class ReactiveAttrSynced(ReactiveBase):
 
 
 @dataclass
-class ReactiveAttrPresence(ReactiveBase):
-    visible_for: Union[Iterable, bool]
+class ReactiveAttrPresence:
+    ui_elm: QWidget
+    presence_conditions: List[List[object]]
 
-    @Slot()
-    def ui_elm_changed(self):
-        pass
+    def __post_init__(self):
+        for condition in self.presence_conditions:
+            obj, attr, visible_for = condition
+            if not hasattr(obj, "qtr_instances"):
+                # patch __setattr__
+                type(obj).__setattr__orig = copy(type(obj).__setattr__)
+                type(obj).__setattr__ = _patched__setattr__
+                obj.qtr_instances = defaultdict(list)
+            obj.qtr_instances[attr].append(self)
+
+            # propagate initial value
+            self.attr_changed()
 
     @Slot()
     def attr_changed(self):
-        value = getattr(self.obj, self.attr)
-        if isinstance(self.visible_for, Iterable):
-            self.ui_elm.setVisible(value in self.visible_for)
-        elif isinstance(self.visible_for, bool):
-            self.ui_elm.setVisible(bool(value) == self.visible_for)
-        else:
-            raise NotImplementedError(type(self.ui_elm))
+        is_visible = True
+        for condition in self.presence_conditions:
+            obj, attr, visible_for = condition
+            value = getattr(obj, attr)
+            if isinstance(visible_for, Iterable):
+                if value not in visible_for:
+                    is_visible = False
+                    break
+            elif isinstance(visible_for, bool):
+                if bool(value) is not visible_for:
+                    is_visible = False
+                    break
+            else:
+                if value != visible_for:
+                    is_visible = False
+                    break
+
+        self.ui_elm.setVisible(is_visible)
 
 
 @dataclass

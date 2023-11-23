@@ -1,14 +1,16 @@
 import tempfile
 from copy import copy
 from dataclasses import dataclass
+from datetime import timedelta
 from functools import cached_property
 from io import BytesIO
 from multiprocessing import Lock
 from pathlib import Path
 from random import choice
-from time import sleep
+from time import sleep, time
 from uuid import uuid4
 
+import berserk
 import chess.engine
 import chess.pgn
 import chess.polyglot
@@ -21,7 +23,7 @@ from imutils.perspective import four_point_transform
 from PIL import Image
 from PIL.ImageQt import ImageQt
 from playsound import playsound
-from PySide6.QtCore import QFile, QSize, QStandardPaths, QThreadPool, QTimer, Slot
+from PySide6.QtCore import QFile, QStandardPaths, QThreadPool, QTimer, Slot
 from PySide6.QtGui import QFont, QFontDatabase, QIcon, QImage, QKeySequence, QPixmap, QShortcut, Qt
 from PySide6.QtMultimedia import QCamera, QImageCapture, QMediaCaptureSession, QMediaDevices
 from PySide6.QtUiTools import QUiLoader
@@ -32,6 +34,7 @@ from acid.board import Board, Detector, Square
 from acid.engines import Engine, engines
 from acid.game import Game
 from acid.gui.logs import Logger
+from acid.gui.online.lichess import AuthBrowserWindow
 from acid.gui.qt.reactive import (
     ReactiveAttrEnableDisable,
     ReactiveAttrIcon,
@@ -41,14 +44,23 @@ from acid.gui.qt.reactive import (
 )
 from acid.gui.qt.widgets import ButtonOpensFileDialog, PictureLabelFitToParent, QPlainTextEditFocusSignaled
 from acid.gui.settings import Settings
-from acid.gui.state import BoardDetectorState, GameState
+from acid.gui.state import BoardDetectorState, GameMode, GameState
 from acid.gui.threads import Worker
 
 from acid.gui.res import icons  # isort:skip
 
 UI_MAPPINGS = {
-    "opponent": {chess.BLACK: "Bot Black", chess.WHITE: "Bot WHITE", "human": "Human (all colors)"},
+    "opponent": {
+        "computer_black": "Computer - Black",
+        "computer_white": "Computer - White",
+        "human": "Player over the board",
+        "lichess": "Player on Lichess",
+    },
     "engine": {engine_idx: engine.name for (engine_idx, engine) in enumerate(engines)},
+    "colors": {
+        chess.BLACK: "Black",
+        chess.WHITE: "White",
+    },
 }
 
 TIMER_DEFAULT_MS = 50
@@ -98,6 +110,12 @@ class MainWindow(QMainWindow):
         logger=logger, program_name=conf.PROGRAM_NAME, program_version=conf.PROGRAM_VERSION, pgn_site=conf.PROGRAM_SITE
     )
 
+    white_time = None
+    black_time = None
+    last_tick_s = None
+
+    lichess_game = None
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.load_ui()
@@ -125,15 +143,15 @@ class MainWindow(QMainWindow):
         # wire tap things
         self.ui.comboBoxOpponent.removeItem(0)
         self.ui.comboBoxOpponent.insertItems(0, UI_MAPPINGS["opponent"].values())
-        ReactiveAttrSynced(self.game, "opponent_type_idx", self.ui.comboBoxOpponent)
+        ReactiveAttrSynced(self.ui.comboBoxOpponent, self.game, "opponent_type_idx")
 
         self.ui.comboBoxEngine.removeItem(0)
         self.ui.comboBoxEngine.insertItems(0, UI_MAPPINGS["engine"].values())
-        ReactiveAttrSynced(self.game, "engine_idx", self.ui.comboBoxEngine)
+        ReactiveAttrSynced(self.ui.comboBoxEngine, self.game, "engine_idx")
 
         self.ui.comboBoxCamera.removeItem(0)
         self.ui.comboBoxCamera.insertItems(0, [c.description() for c in self.cameras])
-        ReactiveAttrSynced(self.game, "camera_idx", self.ui.comboBoxCamera)
+        ReactiveAttrSynced(self.ui.comboBoxCamera, self.game, "camera_idx")
 
         # opening book
         documents_dir = Path(QStandardPaths.writableLocation(QStandardPaths.DocumentsLocation))
@@ -151,36 +169,36 @@ class MainWindow(QMainWindow):
             "opening_book_path",
             lambda text: Path(text).name,
         )
-        ReactiveAttrPresence(self.game, "opening_book_path", self.ui.pushButtonOpeningBookRemove, visible_for=True)
+        ReactiveAttrPresence(self.ui.pushButtonOpeningBookRemove, [[self.game, "opening_book_path", True]])
 
         # reactive bind ui elements to game state items
-        ReactiveAttrSynced(self.game, "pgn_white", self.ui.lineEditPlayerWhite)
-        ReactiveAttrSynced(self.game, "pgn_black", self.ui.lineEditPlayerBlack)
-        ReactiveAttrSynced(self.game, "pgn_event", self.ui.lineEditEventName)
-        ReactiveAttrSynced(self.game, "engine_time_s", self.ui.spinBoxEngineTime)
-        ReactiveAttrSynced(self.game, "opening_book_path", opening_book)
+        ReactiveAttrSynced(self.ui.lineEditPlayerWhite, self.game, "pgn_white")
+        ReactiveAttrSynced(self.ui.lineEditPlayerBlack, self.game, "pgn_black")
+        ReactiveAttrSynced(self.ui.lineEditEventName, self.game, "pgn_event")
+        ReactiveAttrSynced(self.ui.spinBoxEngineTime, self.game, "engine_time_s")
+        ReactiveAttrSynced(opening_book, self.game, "opening_book_path")
 
-        ReactiveAttrSynced(self.game, "engine_editor_text", self.ui.plainTextEditEngineOptions)
+        ReactiveAttrSynced(self.ui.plainTextEditEngineOptions, self.game, "engine_editor_text")
 
-        ReactiveAttrToolTip(self.game, "opening_book_path", self.ui.pushButtonOpeningBook)
+        ReactiveAttrToolTip(self.ui.pushButtonOpeningBook, self.game, "opening_book_path")
 
         # reactive bind ui elements to gui settings
-        ReactiveAttrSynced(self.settings, "collect_training_data", self.ui.checkBoxCollectTrainingData)
+        ReactiveAttrSynced(self.ui.checkBoxCollectTrainingData, self.settings, "collect_training_data")
         ReactiveAttrSynced(
-            self.settings, "collect_training_data_threshold_perc", self.ui.spinBoxCollectTrainingDataThreshold
+            self.ui.spinBoxCollectTrainingDataThreshold, self.settings, "collect_training_data_threshold_perc"
         )
-        ReactiveAttrSynced(self.settings, "visual_debug_delay", self.ui.checkBoxVisualDebugDelay)
+        ReactiveAttrSynced(self.ui.checkBoxVisualDebugDelay, self.settings, "visual_debug_delay")
 
-        ReactiveAttrSynced(self.settings, "sound_muted", self.ui.pushButtonMuteUnmute)
+        ReactiveAttrSynced(self.ui.pushButtonMuteUnmute, self.settings, "sound_muted")
         values_to_icon = {
             (True,): QIcon(":/sound-off.svg"),
             (False,): QIcon(":/sound-high.svg"),
         }
-        ReactiveAttrIcon(self.settings, "sound_muted", self.ui.pushButtonMuteUnmute, values_to_icon=values_to_icon)
+        ReactiveAttrIcon(self.ui.pushButtonMuteUnmute, self.settings, "sound_muted", values_to_icon=values_to_icon)
 
-        # disable some ui elements based when game has started
+        # disable some ui elements when game has started
         ReactiveAttrEnableDisable(
-            self, "game_state", self.ui.comboBoxOpponent, enable_for=[GameState.NULL, GameState.FINISHED]
+            self.ui.comboBoxOpponent, self, "game_state", enable_for=[GameState.NULL, GameState.FINISHED]
         )
 
         # set save games dir default path
@@ -194,7 +212,23 @@ class MainWindow(QMainWindow):
             collect_training_data_dir_def = documents_dir / conf.PROGRAM_NAME / "TrainingData"
             self.settings.collect_training_data_dir = collect_training_data_dir_def
 
-        # show engine options based on selected  opponent
+        # some options for computer / human play based on selected opponent
+        for ui_elm in [
+            self.ui.labelPlayerWhite,
+            self.ui.lineEditPlayerWhite,
+            self.ui.labelPlayerBlack,
+            self.ui.lineEditPlayerBlack,
+            self.ui.labelEventName,
+            self.ui.lineEditEventName,
+            self.ui.labelSaveGamesTo,
+            self.ui.pushButtonSaveGamesTo,
+        ]:
+            ReactiveAttrPresence(ui_elm, [[self.game, "opponent_type_idx", (0, 1, 2)]])
+
+        ReactiveAttrSynced(self.ui.labelGameplayPlayerWhite, self.game, "pgn_white")
+        ReactiveAttrSynced(self.ui.labelGameplayPlayerBlack, self.game, "pgn_black")
+
+        # show engine options
         for ui_elm in [
             self.ui.labelEngine,
             self.ui.comboBoxEngine,
@@ -206,22 +240,20 @@ class MainWindow(QMainWindow):
             self.ui.pushButtonOpeningBookRemove,
             self.ui.pushButtonOpeningBook,
         ]:
-            ReactiveAttrPresence(self.game, "opponent_type_idx", ui_elm, visible_for=(0, 1))
+            ReactiveAttrPresence(ui_elm, [[self.game, "opponent_type_idx", (0, 1)]])
 
-        ReactiveAttrToolTip(self.settings, "save_games_dir", self.ui.pushButtonSaveGamesTo)
-        ReactiveAttrToolTip(self.settings, "collect_training_data_dir", self.ui.pushButtonCollectTrainingDataSaveTo)
+        ReactiveAttrToolTip(self.ui.pushButtonSaveGamesTo, self.settings, "save_games_dir")
+        ReactiveAttrToolTip(self.ui.pushButtonCollectTrainingDataSaveTo, self.settings, "collect_training_data_dir")
 
         re_detect_visible_for = (BoardDetectorState.DETECTED,)
-        ReactiveAttrPresence(
-            self, "board_detector_state", self.ui.pushButtonReDetectCorners, visible_for=re_detect_visible_for
-        )
+        ReactiveAttrPresence(self.ui.pushButtonReDetectCorners, [[self, "board_detector_state", re_detect_visible_for]])
         self.ui.pushButtonReDetectCorners.setVisible(False)
 
         values_to_icon = {
             (GameState.NULL, GameState.FINISHED, GameState.PAUSED): QIcon(":/play.svg"),
             (GameState.RUNNING,): QIcon(":/pause.svg"),
         }
-        ReactiveAttrIcon(self, "game_state", self.ui.pushButtonStartPause, values_to_icon=values_to_icon)
+        ReactiveAttrIcon(self.ui.pushButtonStartPause, self, "game_state", values_to_icon=values_to_icon)
 
         self.ui.comboBoxOpponent.currentIndexChanged.connect(self.action_opponent_changed)
         self.ui.comboBoxEngine.currentIndexChanged.connect(self.action_engine_changed)
@@ -234,6 +266,46 @@ class MainWindow(QMainWindow):
         self.ui.pushButtonMoveUndo.clicked.connect(self.action_move_undo)
         self.ui.plainTextEditEngineOptions.editingFinished.connect(self.action_engine_configured)
         QShortcut(QKeySequence(Qt.ALT | Qt.Key_Z), self.ui).activated.connect(self.action_move_undo)
+
+        # show lichess options - auth
+        self.ui.comboBoxLichessColor.removeItem(0)
+        self.ui.comboBoxLichessColor.insertItems(0, UI_MAPPINGS["colors"].values())
+
+        for ui_elm in [
+            self.ui.pushButtonLichessLogin,
+            self.ui.labelLichessUsernamePasswordHint,
+        ]:
+            ReactiveAttrPresence(
+                ui_elm, [[self.game, "opponent_type_idx", 3], [self.settings, "lichess_access_token", False]]
+            )
+
+        for ui_elm in [
+            self.ui.labelLichessColor,
+            self.ui.comboBoxLichessColor,
+            self.ui.labelLichessTime,
+            self.ui.spinBoxLichessTime,
+            self.ui.labelLichessIncrement,
+            self.ui.spinBoxLichessIncrement,
+            self.ui.labelLichessRated,
+            self.ui.checkBoxLichessRated,
+        ]:
+            ReactiveAttrPresence(
+                ui_elm, [[self.game, "opponent_type_idx", 3], [self.settings, "lichess_access_token", True]]
+            )
+
+        ReactiveAttrPresence(
+            self.ui.pushButtonLichessLogout,
+            [[self.game, "opponent_type_idx", 3], [self.settings, "lichess_access_token", True]],
+        )
+
+        ReactiveAttrSynced(self.ui.comboBoxLichessColor, self.settings, "lichess_color_idx")
+        ReactiveAttrSynced(self.ui.spinBoxLichessTime, self.settings, "lichess_time_m")
+        ReactiveAttrSynced(self.ui.spinBoxLichessIncrement, self.settings, "lichess_increment_s")
+        ReactiveAttrSynced(self.ui.checkBoxLichessRated, self.settings, "lichess_is_rated")
+
+        self.ui.pushButtonLichessLogin.clicked.connect(self.action_lichess_login)
+        self.ui.comboBoxLichessColor.currentIndexChanged.connect(self.action_lichess_color_changed)
+        self.ui.pushButtonLichessLogout.clicked.connect(self.action_lichess_logout)
 
         # monospace fonts
         mono_font = QFontDatabase.font("Menlo", "regular", 13)
@@ -263,10 +335,15 @@ class MainWindow(QMainWindow):
         self.vis_debug_timer_detector.timeout.connect(self.update_ui_detector)
         self.vis_debug_timer_detector.start(TIMER_DEFAULT_MS)
 
-        # framegrabber worker
         self.threadpool = QThreadPool()
-        fg_worker = Worker(self.gameloop)
+
+        # frame grabber worker
+        fg_worker = Worker(self.game_loop)
         self.threadpool.start(fg_worker)
+
+        # lichess game state streaming worker
+        lichess_worker = Worker(self.lichess_game_state_worker)
+        self.threadpool.start(lichess_worker)
 
     def load_ui(self):
         loader = QUiLoader()
@@ -293,6 +370,10 @@ class MainWindow(QMainWindow):
         return list(UI_MAPPINGS["opponent"].keys())[self.game.opponent_type_idx]
 
     @property
+    def lichess_color(self):
+        return list(UI_MAPPINGS["colors"].keys())[self.settings.lichess_color_idx]
+
+    @property
     def engine(self):
         if self.game.engine_idx is not None:
             return engines[self.game.engine_idx]
@@ -301,6 +382,12 @@ class MainWindow(QMainWindow):
     def cameras(self):
         # uses a cached property to ensure always the same order of cameras for this session
         return QMediaDevices.videoInputs()
+
+    @cached_property
+    def lichess_api(self):
+        if not self.settings.lichess_access_token:
+            raise NotImplementedError()
+        return berserk.Client(berserk.TokenSession(self.settings.lichess_access_token))
 
     @property
     def game_save_dir(self):
@@ -329,6 +416,21 @@ class MainWindow(QMainWindow):
 
         self.game.set_save_dir(self._game_save_dir)
         return self._game_save_dir
+
+    @property
+    def opponent(self):
+        return list(UI_MAPPINGS["opponent"].keys())[self.game.opponent_type_idx]
+
+    def validate_lichess_access_token(self):
+        # token already set and still valid?
+        if self.settings.lichess_access_token:
+            if (
+                not self.settings.lichess_access_token_expires
+                or self.settings.lichess_access_token_expires < time() + 24 * 3600
+            ):
+                # no longer valid
+                self.settings.lichess_access_token = None
+                self.settings.lichess_access_token_expires = None
 
     @Slot()
     def action_camera_changed(self):
@@ -381,13 +483,17 @@ class MainWindow(QMainWindow):
                 self.log("game started")
             else:
                 if self.feedback_last:
+                    self.feedback_last.show_message = True
                     self.provide_feedback(self.feedback_last)
                 self.log("game resumed")
             self.game_state = GameState.RUNNING
         elif self.game_state == GameState.RUNNING:
-            self.game_state = GameState.PAUSED
-            self.pause_text = "paused"
-            self.log("game paused")
+            if self.opponent == "lichess":
+                Feedback(self, "You can't pause a lichess game", False, True)
+            else:
+                self.game_state = GameState.PAUSED
+                self.pause_text = "paused"
+                self.log("game paused")
 
     @Slot()
     def action_move_undo(self):
@@ -402,17 +508,19 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def action_opponent_changed(self):
-        opponent_idx = self.game.opponent_type_idx
-        opponent = list(UI_MAPPINGS["opponent"].keys())[opponent_idx]
         self.update_board_rendering()
 
-        # set player name to BOT_NAME in case of bot games
-        if opponent == chess.BLACK:
-            self.game.pgn_black = conf.BOT_NAME
+        # set player name to COMPUTER_NAME in case of bot games
+        if self.opponent == "computer_black":
+            self.game.pgn_black = conf.COMPUTER_NAME
             self.game.pgn_white = None
-        elif opponent == chess.WHITE:
-            self.game.pgn_white = conf.BOT_NAME
+        elif self.opponent == "computer_white":
+            self.game.pgn_white = conf.COMPUTER_NAME
             self.game.pgn_black = None
+        elif self.opponent == "lichess":
+            self.validate_lichess_access_token()
+            # "hack" to force lichess_access_token to trigger ui changes
+            self.settings.lichess_access_token = self.settings.lichess_access_token
         else:
             self.game.engine_idx = None
 
@@ -489,17 +597,41 @@ class MainWindow(QMainWindow):
             except chess.engine.EngineError as e:
                 self.show_alert(e)
 
+    @Slot()
+    def action_lichess_login(self):
+        # get new token
+        def save_token(token):
+            self.settings.lichess_access_token = token["access_token"]
+            self.settings.lichess_access_token_expires = token["expires_at"]
+
+        auth_browser = AuthBrowserWindow(save_token)
+        auth_browser.show()
+
+    @Slot()
+    def action_lichess_logout(self):
+        self.settings.lichess_access_token = None
+        self.settings.lichess_access_token_expires = None
+
+    @Slot()
+    def action_lichess_color_changed(self):
+        self.update_board_rendering()
+
     def update_board_rendering(self):
-        lastmove = None
+        last_move = None
         if self.board.move_stack:
-            lastmove = self.board.move_stack[-1]
+            last_move = self.board.move_stack[-1]
 
         rendered_image_out = BytesIO()
-        orientation = chess.WHITE
-        if self.game.opponent_type_idx == chess.WHITE:
-            orientation = chess.BLACK
 
-        svg_board = chess.svg.board(self.board, lastmove=lastmove, orientation=orientation)
+        orientation = chess.BLACK
+        if self.opponent == "lichess":
+            if self.lichess_color == chess.WHITE:
+                orientation = chess.WHITE
+        else:
+            if self.game.opponent_type_idx == chess.WHITE:
+                orientation = chess.WHITE
+
+        svg_board = chess.svg.board(self.board, lastmove=last_move, orientation=orientation)
         svg2png(bytestring=svg_board, write_to=rendered_image_out, output_width=2048, output_height=2048, dpi=200)
         self.rendered_image = Image.open(rendered_image_out)
 
@@ -533,6 +665,34 @@ class MainWindow(QMainWindow):
         for label, text in self.labels.items():
             getattr(self.ui, label).setText(text)
 
+        self.update_clock_times()
+
+    def update_clock_times(self, wtime=None, btime=None):
+        if wtime:
+            self.white_time = wtime
+            self.black_time = btime
+            self.last_tick_s = time()
+        elif self.white_time:
+            if not self.board or self.game_state not in [GameState.RUNNING]:
+                return
+            if self.board.turn == chess.WHITE:
+                self.white_time = self.white_time - timedelta(seconds=(time() - self.last_tick_s))
+            else:
+                self.black_time = self.black_time - timedelta(seconds=(time() - self.last_tick_s))
+            self.last_tick_s = time()
+
+        if self.white_time:
+            if self.white_time.hour:
+                self.labels["labelGameplayTimeWhite"] = self.white_time.strftime("%H:%M:%S")
+            else:
+                self.labels["labelGameplayTimeWhite"] = self.white_time.strftime("%M:%S")
+
+        if self.black_time:
+            if self.black_time.hour:
+                self.labels["labelGameplayTimeBlack"] = self.black_time.strftime("%H:%M:%S")
+            else:
+                self.labels["labelGameplayTimeBlack"] = self.black_time.strftime("%M:%S")
+
     def provide_feedback(self, feedback):
         if feedback.show_message:
             self.labels["labelStatus"] = feedback.message
@@ -540,20 +700,92 @@ class MainWindow(QMainWindow):
             if self.feedback_last and self.feedback_last.message != feedback.message:
                 self.log(feedback.message)
         if (feedback.speak_message or feedback.speak_message_overwrite) and not self.settings.sound_muted:
-            tts = gTTS(text=(feedback.speak_message_overwrite or feedback.message), lang="en", tld="us")
+            tts = gTTS(text=(feedback.speak_message_overwrite or feedback.message), lang="en", tld="us", slow=True)
             with tempfile.NamedTemporaryFile() as fp:
                 tts.save(fp.name)
                 playsound(fp.name, block=False)
 
     @Slot()
-    def gameloop(self, *args, **kwargs):
+    def lichess_game_state_worker(self, *args, **kwargs):
+        while True:
+            if not self.lichess_game:
+                if self.close_requested:
+                    break
+                sleep(1)
+                continue
+
+            stop_streaming = False
+            for game_data in self.lichess_api.board.stream_game_state(self.lichess_game["gameId"]):
+                print(game_data)
+
+                if self.close_requested:
+                    Feedback(self, "Resigning...")
+                    self.lichess_api.board.resign_game(self.lichess_game["gameId"])
+                    stop_streaming = True
+                    break
+
+                game_state = None
+                if game_data["type"] == "gameFull":
+                    game_state = game_data["state"]
+                elif game_data["type"] == "gameState":
+                    if game_data["status"] == "aborted":
+                        Feedback(self, "Game aborted", speak_message=True)
+                        stop_streaming = True
+                        break
+                    elif game_data["status"] == "outoftime":
+                        Feedback(self, f"Out of time, {game_data['winner']} wins", speak_message=True)
+                        stop_streaming = True
+                        break
+                    elif game_data["status"] == "resign":
+                        if game_data["winner"] == chess.COLOR_NAMES[self.lichess_color]:
+                            Feedback(self, f"Opponent resigned", speak_message=True)
+                        else:
+                            Feedback(self, f"You resigned", speak_message=True)
+                        stop_streaming = True
+                        break
+
+                    game_state = game_data
+                    self.update_clock_times(game_state["wtime"], game_state["btime"])
+                elif game_data["type"] == "opponentGone":
+                    if game_data["gone"] is True:
+                        Feedback(
+                            self,
+                            f"Opponent gone, you can claim victory in {game_data['claimWinInSeconds']} seconds",
+                            speak_message=True,
+                        )
+                        if game_data["claimWinInSeconds"] == 0:
+                            self.lichess_api.board.claim_victory(self.lichess_game["gameId"])
+
+                if game_state:
+                    if not game_state["moves"]:
+                        continue
+                    move = chess.Move.from_uci(game_state["moves"].split(" ")[-1])
+                    self.lichess_game["move"] = move
+
+            if stop_streaming:
+                self.lichess_game["ended"] = True
+                break
+
+    @Slot()
+    def game_loop(self, *args, **kwargs):
         board_edges = None
         board_warped = None
         squares_coords = None
         last_move = None
         validation_count = 0
-        engine_run_todo = True
+        validation_count_needed_initial = 4
+        its_opponents_turn = True
         board_image_saved = False
+
+        print(self.opponent)
+        if self.opponent in ["computer_white", "computer_black"]:
+            game_mode = GameMode.COMPUTER
+        elif self.opponent == "lichess":
+            game_mode = GameMode.LICHESS
+        elif self.opponent == "human":
+            game_mode = GameMode.HUMAN
+        else:
+            raise NotImplementedError(f"No idea what game type to choose for opponent={self.opponent}")
 
         while True:
             if self.close_requested:
@@ -566,13 +798,18 @@ class MainWindow(QMainWindow):
                 continue
 
             self.frame_num += 1
+            if self.frame_num % 3 != 0:
+                continue
+
             frame = copy(self.current_frame)
+            validation_count_needed = validation_count_needed_initial
 
             with self._camera_switch_mutex:
                 if self._camera.isActive():
                     self.camera_capture.capture()
 
-            self.log(f"Frame nr. {self.frame_num}", stdout_only=True)
+            if self.frame_num % 10 == 0:
+                self.log(f"Frame nr. {self.frame_num}", stdout_only=True)
             if self.board_detector_state == BoardDetectorState.NULL:
                 self.debug_images_buffer.append(frame)
                 sleep(0.1)
@@ -691,9 +928,59 @@ class MainWindow(QMainWindow):
                 sleep(0.1)
                 continue
 
-            # engine move
-            if self.board.turn == self.engine_color and engine_run_todo:
-                self.labels["labelStatus"] = "Bot is thinking"
+            # create a lichess game
+            if game_mode == GameMode.LICHESS and not self.lichess_game:
+                # start a new lichess game
+                color = chess.COLOR_NAMES[self.lichess_color]
+                Feedback(
+                    self,
+                    message=f"Waiting for game to start ({color}) {self.settings.lichess_time_m}+{self.settings.lichess_increment_s}",
+                )
+                self.lichess_api.board.seek(
+                    self.settings.lichess_time_m,
+                    self.settings.lichess_increment_s,
+                    rated=self.settings.lichess_is_rated,
+                    color=color,
+                )
+
+                games = self.lichess_api.games.get_ongoing()
+                if len(games) == 0:
+                    Feedback(self, message=f"Started lichess game not found")
+                    break
+                elif len(games) > 1:
+                    Feedback(self, message=f"Starting multiple lichess games is not yet supported")
+                    break
+
+                Feedback(self, message=f"Game is ready", speak_message=True)
+
+                self.lichess_game = games[0]
+                self.lichess_game["move"] = None
+                self.lichess_game["ended"] = False
+
+                # get metadata
+                for game_data in self.lichess_api.board.stream_game_state(self.lichess_game["gameId"]):
+                    if game_data["type"] == "gameFull":
+                        self.labels["labelGameplayPlayerWhite"] = (
+                            f"<b>{game_data['white']['title'] or ''}</b> "
+                            f"{game_data['white']['name']} "
+                            f"<font color='grey'>({game_data['white']['rating']})</font>"
+                        )
+
+                        self.labels["labelGameplayPlayerBlack"] = (
+                            f"<b>{game_data['black']['title'] or ''}</b> "
+                            f"{game_data['black']['name']} "
+                            f"<font color='grey'>({game_data['black']['rating']})</font>"
+                        )
+                        break
+
+                its_opponents_turn = False
+                if self.lichess_color == chess.BLACK:
+                    its_opponents_turn = True
+
+            move = None
+            if game_mode == GameMode.COMPUTER and its_opponents_turn:
+                # make engine move
+                self.labels["labelStatus"] = "Computer is thinking"
 
                 engine_move = None
                 move_type = ""
@@ -712,27 +999,58 @@ class MainWindow(QMainWindow):
                     move_type = "Engine"
 
                 # was the game paused in the meantime?
-                if self.game_state != GameState.PAUSED:
-                    from_square = chess.SQUARE_NAMES[engine_move.from_square]
-                    to_square = chess.SQUARE_NAMES[engine_move.to_square]
-                    Feedback(
-                        self,
-                        message=f"Waiting for {chess.COLOR_NAMES[self.board.turn]} to move: {from_square} to {to_square}",
-                        speak_message_overwrite=f"{from_square} to {to_square}",
-                        log_message=False,
-                    )
-                    self.log(f"{move_type} move: {from_square} to {to_square}")
-                    engine_run_todo = False
+                if self.game_state == GameState.PAUSED:
+                    continue
 
-            if not self.engine or (self.engine and self.board.turn != self.engine_color):
-                Feedback(self, message=f"Waiting for {chess.COLOR_NAMES[self.board.turn]} to move")
+                from_square = chess.SQUARE_NAMES[engine_move.from_square]
+                to_square = chess.SQUARE_NAMES[engine_move.to_square]
+                Feedback(
+                    self,
+                    message=f"Waiting for {chess.COLOR_NAMES[self.board.turn]} to move: {from_square} to {to_square}",
+                    speak_message_overwrite=f"{from_square} to {to_square}",
+                    log_message=True,
+                )
+                self.log(f"{move_type} move: {from_square} to {to_square}")
+                its_opponents_turn = False
+            elif game_mode == GameMode.LICHESS and its_opponents_turn is True:
+                break_game_loop = False
+                while True:
+                    if self.lichess_game["ended"]:
+                        self.lichess_game = None
+                        break_game_loop = True
+                        self.game_state = GameState.FINISHED
+                        break
+                    if self.lichess_game["move"]:
+                        if not self.board.move_stack or self.board.move_stack[-1] != self.lichess_game["move"]:
+                            move = self.lichess_game["move"]
+                            last_move = move
+                            self.lichess_game["move"] = None
+                            from_square = chess.SQUARE_NAMES[move.from_square]
+                            to_square = chess.SQUARE_NAMES[move.to_square]
+                            validation_count = validation_count_needed * 10
+                            Feedback(
+                                self,
+                                message=f"Move {chess.COLOR_NAMES[self.board.turn]} from {from_square} to {to_square}",
+                                speak_message_overwrite=f"{from_square} to {to_square}",
+                                log_message=True,
+                            )
+                            break
+                    else:
+                        sleep(0.5)
 
-            move = self.board.diff(squares)
+                if break_game_loop:
+                    break
+
+            if game_mode in [GameMode.COMPUTER, GameMode.HUMAN] or (
+                game_mode == GameMode.LICHESS and its_opponents_turn is False
+            ):
+                # board diff
+                move = self.board.diff(squares)
+                if self.board.move_stack and self.board.move_stack[-1] == move:
+                    continue
+
             if move is None:
                 continue
-
-            # validate move with last frame
-            validation_count_needed = 2
 
             if move != last_move:
                 last_move = move
@@ -759,14 +1077,31 @@ class MainWindow(QMainWindow):
             if validation_count < validation_count_needed:
                 continue
 
-            if self.board.turn == self.engine_color:
-                engine_run_todo = True
-
             # moved!
+            if game_mode == GameMode.LICHESS and not its_opponents_turn:
+                self.lichess_api.board.make_move(self.lichess_game["gameId"], move.uci())
+
             self.board.push(move)
             self.board.update_squares(squares)
+
+            if game_mode == "computer" and self.board.turn != self.engine_color:
+                Feedback(self, message="Waiting for your move")
+            elif game_mode == GameMode.HUMAN:
+                Feedback(self, message=f"Waiting for {chess.COLOR_NAMES[self.board.turn]} to move")
+
             last_move = None
             validation_count = 0
+
+            if game_mode == GameMode.COMPUTER:
+                if self.board.turn != self.engine_color:
+                    its_opponents_turn = True
+                else:
+                    its_opponents_turn = False
+            elif game_mode == GameMode.LICHESS:
+                if self.board.turn == self.lichess_color:
+                    its_opponents_turn = False
+                else:
+                    its_opponents_turn = True
 
             self.game.update(
                 move_stack=self.board.move_stack, board_fen=self.board.board_fen(), a1_corner=self.board.a1_corner
@@ -775,32 +1110,33 @@ class MainWindow(QMainWindow):
                 playsound(conf.GUI_RES_DIR.joinpath("move.wav"))
             self.update_board_rendering()
 
-            # Game over?
-            outcome = self.board.outcome(claim_draw=True)
-            if outcome is not None:
-                if outcome.termination == chess.Termination.CHECKMATE:
-                    Feedback(self, message="Game over, checkmate!", speak_message=True)
-                elif outcome.termination == chess.Termination.STALEMATE:
-                    Feedback(self, message="Game over, stalemate!", speak_message=True)
-                elif outcome.termination == chess.Termination.INSUFFICIENT_MATERIAL:
-                    Feedback(self, message="Game over, insufficient material!", speak_message=True)
-                elif outcome.termination == chess.Termination.FIVEFOLD_REPETITION:
-                    Feedback(self, message="Game over, fivefold repetition!", speak_message=True)
-                elif outcome.termination == chess.Termination.THREEFOLD_REPETITION:
-                    Feedback(self, message="Game over, threefold repetition!", speak_message=True)
-                elif outcome.termination == chess.Termination.VARIANT_WIN:
-                    Feedback(self, message="Game over, variant win!", speak_message=True)
-                elif outcome.termination == chess.Termination.VARIANT_LOSS:
-                    Feedback(self, message="Game over, variant loss!", speak_message=True)
-                elif outcome.termination == chess.Termination.VARIANT_DRAW:
-                    Feedback(self, message="Game over, variant draw!", speak_message=True)
+            # game over?
+            if game_mode in [GameMode.COMPUTER, GameMode.HUMAN]:
+                outcome = self.board.outcome(claim_draw=True)
+                if outcome is not None:
+                    if outcome.termination == chess.Termination.CHECKMATE:
+                        Feedback(self, message="Game over, checkmate!", speak_message=True)
+                    elif outcome.termination == chess.Termination.STALEMATE:
+                        Feedback(self, message="Game over, stalemate!", speak_message=True)
+                    elif outcome.termination == chess.Termination.INSUFFICIENT_MATERIAL:
+                        Feedback(self, message="Game over, insufficient material!", speak_message=True)
+                    elif outcome.termination == chess.Termination.FIVEFOLD_REPETITION:
+                        Feedback(self, message="Game over, fivefold repetition!", speak_message=True)
+                    elif outcome.termination == chess.Termination.THREEFOLD_REPETITION:
+                        Feedback(self, message="Game over, threefold repetition!", speak_message=True)
+                    elif outcome.termination == chess.Termination.VARIANT_WIN:
+                        Feedback(self, message="Game over, variant win!", speak_message=True)
+                    elif outcome.termination == chess.Termination.VARIANT_LOSS:
+                        Feedback(self, message="Game over, variant loss!", speak_message=True)
+                    elif outcome.termination == chess.Termination.VARIANT_DRAW:
+                        Feedback(self, message="Game over, variant draw!", speak_message=True)
 
-                self.game.update(move_stack=self.board.move_stack, winner=outcome.winner)
-                self.game_state = GameState.FINISHED
-                break
+                    self.game.update(move_stack=self.board.move_stack, winner=outcome.winner)
+                    self.game_state = GameState.FINISHED
+                    break
 
             # check?
-            if self.engine and self.board.turn != self.engine_color:
+            if game_mode in [GameMode.COMPUTER, GameMode.LICHESS]:
                 if self.board.is_check():
                     Feedback(self, message="check!", speak_message=True)
 

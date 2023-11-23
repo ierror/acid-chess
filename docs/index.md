@@ -50,6 +50,7 @@ a PGN is generated, which you can load later in the analysis board at Lichess, o
 
 - Engine play against Stockfish or Maia
 - Use polyglot opening books
+- Play on Lichess
 - PGN exports
 
 <img src="_static/images/gui.jpg" alt="How it works - GUI" width="85%">
@@ -57,7 +58,6 @@ a PGN is generated, which you can load later in the analysis board at Lichess, o
 # Planned Features
 
 - Clock
-- Play on Lichess
 - ... see [issues](https://github.com/ierror/acid-chess/issues/) for details
 
 # Technology
