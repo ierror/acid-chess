@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 import torchvision
-from pytorch_lightning import LightningModule
+from lightning import LightningModule
 from torch import nn
 from torch.optim.lr_scheduler import OneCycleLR
 from torch.utils.data import DataLoader
@@ -92,6 +92,7 @@ class BoardSegmentationModule(LightningModule):
         self.lr = lr
         self.train_set = train_set
         self.val_set = val_set
+        self.val_step_outputs = []
 
         self.save_hyperparameters()
 
@@ -121,12 +122,14 @@ class BoardSegmentationModule(LightningModule):
         out = self(img)
         loss_val = F.cross_entropy(out, mask)
         self.log("val_loss", loss_val)
+        self.val_step_outputs.append(loss_val)
         return {"val_loss": loss_val}
 
-    def validation_epoch_end(self, outputs):
-        loss_val = torch.stack([x["val_loss"] for x in outputs]).mean()
-        log_dict = {"val_loss": loss_val}
-        self.log("val_loss", log_dict["val_loss"])
+    def on_validation_epoch_end(self):
+        val_loss = torch.stack([x for x in self.val_step_outputs]).mean()
+        log_dict = {"val_loss": val_loss}
+        self.log("val_loss", val_loss)
+        self.val_step_outputs.clear()
         return {"log": log_dict, "val_loss": log_dict["val_loss"], "progress_bar": log_dict}
 
     def configure_optimizers(self):

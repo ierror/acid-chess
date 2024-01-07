@@ -17,6 +17,7 @@ import chess.polyglot
 import chess.svg
 import cv2
 import qimage2ndarray
+from berserk.exceptions import ResponseError
 from cairosvg import svg2png
 from gtts import gTTS
 from imutils.perspective import four_point_transform
@@ -342,8 +343,12 @@ class MainWindow(QMainWindow):
         self.threadpool.start(fg_worker)
 
         # lichess game state streaming worker
-        lichess_worker = Worker(self.lichess_game_state_worker)
-        self.threadpool.start(lichess_worker)
+        lichess_game_state_worker = Worker(self.lichess_game_state_worker)
+        self.threadpool.start(lichess_game_state_worker)
+
+        # lichess opening explorer worker
+        lichess_opening_explorer = Worker(self.lichess_opening_explorer_worker)
+        self.threadpool.start(lichess_opening_explorer)
 
     def load_ui(self):
         loader = QUiLoader()
@@ -386,7 +391,8 @@ class MainWindow(QMainWindow):
     @cached_property
     def lichess_api(self):
         if not self.settings.lichess_access_token:
-            raise NotImplementedError()
+            # some API methods like the opening explorer don't require authentication
+            return berserk.Client()
         return berserk.Client(berserk.TokenSession(self.settings.lichess_access_token))
 
     @property
@@ -480,6 +486,8 @@ class MainWindow(QMainWindow):
             if self.board_detector_state != BoardDetectorState.DETECTED:
                 self.board_detector_state = BoardDetectorState.RUNNING_CORNER_DETECTION
             if self.game_state in (GameState.NULL, GameState.FINISHED):
+                self.board.reset()
+                self.labels["labelGameplayOpeningName"] = ""
                 self.log("game started")
             else:
                 if self.feedback_last:
@@ -668,9 +676,11 @@ class MainWindow(QMainWindow):
         self.update_clock_times()
 
     def update_clock_times(self, wtime=None, btime=None):
-        if wtime:
-            self.white_time = wtime
-            self.black_time = btime
+        if wtime or btime:
+            if wtime:
+                self.white_time = wtime
+            if btime:
+                self.black_time = btime
             self.last_tick_s = time()
         elif self.white_time:
             if not self.board or self.game_state not in [GameState.RUNNING]:
@@ -759,17 +769,33 @@ class MainWindow(QMainWindow):
                     self.update_clock_times(game_state["wtime"], game_state["btime"])
                 elif game_data["type"] == "opponentGone":
                     if game_data["gone"] is True:
-                        if opponent_gone is False:
+                        if game_data["claimWinInSeconds"] == 0:
+                            sleep(2)
+                            self.lichess_api.board.claim_victory(self.lichess_game["gameId"])
                             Feedback(
                                 self,
-                                f"Opponent gone, you can claim victory in {game_data['claimWinInSeconds']} seconds",
+                                f"We claimed victory, you won",
                                 speak_message=True,
                             )
-                            opponent_gone = True
-                        if game_data["claimWinInSeconds"] == 0:
-                            self.lichess_api.board.claim_victory(self.lichess_game["gameId"])
-                            stop_streaming = True
-                            break
+
+                        if opponent_gone is False:
+                            if self.lichess_color != self.board.turn:
+                                opponent_gone = True
+                                continue
+
+                            Feedback(
+                                self,
+                                f"Opponent gone, we will claim victory in {game_data['claimWinInSeconds']} seconds.",
+                                speak_message=True,
+                            )
+                            Feedback(
+                                self,
+                                f"Make sure you have made the last move and it's the opponent's turn.",
+                                speak_message=True,
+                            )
+
+                            if game_data["claimWinInSeconds"] > 0:
+                                sleep(game_data["claimWinInSeconds"] / 4)
                     else:
                         opponent_gone = False
 
@@ -784,13 +810,36 @@ class MainWindow(QMainWindow):
                 break
 
     @Slot()
+    def lichess_opening_explorer_worker(self, *args, **kwargs):
+        while True:
+            if self.close_requested:
+                break
+            elif self.game_state != GameState.RUNNING:
+                sleep(1)
+                continue
+
+            if not self.board.move_stack:
+                sleep(5)
+                continue
+
+            moves = [str(m) for m in self.board.move_stack]
+            opening = self.lichess_api.opening_explorer.get_masters_games(play=moves, top_games=1, moves=1)
+            opening_name = opening.get("opening", {}).get("name")
+            if opening_name:
+                self.labels["labelGameplayOpeningName"] = f"Opening: {opening_name}"
+            else:
+                self.labels["labelGameplayOpeningName"] = ""
+
+            sleep(5)
+
+    @Slot()
     def game_loop(self, *args, **kwargs):
         board_edges = None
         board_warped = None
         squares_coords = None
         last_move = None
         validation_count = 0
-        validation_count_needed_initial = 4
+        validation_count_needed_initial = 5
         board_image_saved = False
 
         while True:
@@ -818,6 +867,14 @@ class MainWindow(QMainWindow):
                 self.log(f"Frame nr. {self.frame_num}", stdout_only=True)
             if self.board_detector_state == BoardDetectorState.NULL:
                 self.debug_images_buffer.append(frame)
+                sleep(0.1)
+                continue
+
+            if self.game_state == GameState.PAUSED:
+                self.labels["labelStatus"] = self.pause_text
+                sleep(0.1)
+                continue
+            elif self.game_state != GameState.RUNNING:
                 sleep(0.1)
                 continue
 
@@ -949,11 +1006,6 @@ class MainWindow(QMainWindow):
                     )
             self.debug_images_buffer.append(image)
 
-            if self.game_state == GameState.PAUSED:
-                self.labels["labelStatus"] = self.pause_text
-                sleep(0.1)
-                continue
-
             # create a lichess game
             if game_mode == GameMode.LICHESS and not self.lichess_game:
                 # start a new lichess game
@@ -972,26 +1024,30 @@ class MainWindow(QMainWindow):
                 games = self.lichess_api.games.get_ongoing()
                 if len(games) == 0:
                     Feedback(self, message=f"Started lichess game not found")
-                    break
+                    self.game_state = GameState.NULL
                 elif len(games) > 1:
                     Feedback(self, message=f"Starting multiple lichess games is not yet supported")
-                    break
+                    self.game_state = GameState.NULL
 
                 Feedback(self, message=f"Game is ready", speak_message=True)
 
                 self.lichess_game = games[0]
                 self.lichess_game["move"] = None
                 self.lichess_game["ended"] = False
+                self.game.pgn_site = "lichess"
+                self.game.pgn_event = f"https://lichess.org/{self.lichess_game['gameId']}"
 
                 # get metadata
                 for game_data in self.lichess_api.board.stream_game_state(self.lichess_game["gameId"]):
                     if game_data["type"] == "gameFull":
+                        self.game.pgn_white = game_data["white"]["name"]
                         self.labels["labelGameplayPlayerWhite"] = (
                             f"<b>{game_data['white']['title'] or ''}</b> "
                             f"{game_data['white']['name']} "
                             f"<font color='grey'>({game_data['white']['rating']})</font>"
                         )
 
+                        self.game.pgn_black = game_data["black"]["name"]
                         self.labels["labelGameplayPlayerBlack"] = (
                             f"<b>{game_data['black']['title'] or ''}</b> "
                             f"{game_data['black']['name']} "
@@ -1046,6 +1102,7 @@ class MainWindow(QMainWindow):
                         break_game_loop = True
                         self.game_state = GameState.FINISHED
                         break
+
                     if self.lichess_game["move"]:
                         if not self.board.move_stack or self.board.move_stack[-1] != self.lichess_game["move"]:
                             move = self.lichess_game["move"]
@@ -1065,7 +1122,7 @@ class MainWindow(QMainWindow):
                         sleep(0.5)
 
                 if break_game_loop:
-                    break
+                    self.game_state = GameState.NULL
 
             if game_mode in [GameMode.COMPUTER, GameMode.HUMAN] or (
                 game_mode == GameMode.LICHESS and its_opponents_turn is False
@@ -1104,8 +1161,14 @@ class MainWindow(QMainWindow):
                 continue
 
             # moved!
-            if game_mode == GameMode.LICHESS and not its_opponents_turn:
-                self.lichess_api.board.make_move(self.lichess_game["gameId"], move.uci())
+            if game_mode == GameMode.LICHESS:
+                if not its_opponents_turn:
+                    try:
+                        self.lichess_api.board.make_move(self.lichess_game["gameId"], move.uci())
+                    except ResponseError as e:
+                        Feedback(self, message=f"Lichess API Error: {e}")
+                else:
+                    Feedback(self, message="Waiting for opponent to move")
 
             self.board.push(move)
             self.board.update_squares(squares)
@@ -1147,8 +1210,8 @@ class MainWindow(QMainWindow):
                         Feedback(self, message="Game over, variant draw!", speak_message=True)
 
                     self.game.update(move_stack=self.board.move_stack, winner=outcome.winner)
+                    self.lichess_game = None
                     self.game_state = GameState.FINISHED
-                    break
 
             # check?
             if game_mode in [GameMode.COMPUTER, GameMode.LICHESS]:

@@ -38,8 +38,10 @@ were trained for the board and squares recognition.
 
 # Current Release 
 
-### 2023-11-23: v.0.2.0
-- added support to play on Lichess
+### 2023-11-23: v.0.2.0 
+- fixed lichess "opponent gone" behaviour, mate and stalemate handling
+- upgraded to latest PyTorch Lightning version 2.1.2
+- trained models with new training data
 
 complete [Changelog](https://acid-chess.readthedocs.io/en/latest/changelog.html)
 

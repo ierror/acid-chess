@@ -49,7 +49,7 @@ git lfs pull
 pipenv install
 ```
 
-or if you want to develop for ACID CHESS
+or if you want to develop for ACID Chess
 
 ```bash
 pipenv install --dev

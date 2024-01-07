@@ -2,7 +2,7 @@ from pathlib import Path
 
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-from pytorch_lightning import Trainer
+from lightning import Trainer
 from torchvision import transforms
 
 from .. import conf

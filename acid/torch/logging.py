@@ -1,4 +1,4 @@
-from pytorch_lightning.loggers import CSVLogger, WandbLogger
+from lightning.pytorch.loggers import CSVLogger, WandbLogger
 
 from acid import conf
 
